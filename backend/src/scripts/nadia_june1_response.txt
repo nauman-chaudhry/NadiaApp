@@ -1,0 +1,35 @@
+// DRAFT MESSAGE — do not send without review
+//
+// Hi Nadia,
+//
+// Good news — your numbers are actually correct in the dashboard. Here's what's happening:
+//
+// On June 1 you have two active Taboola accounts running simultaneously:
+//
+//   • Lead Gen Affiliates – SC (your Codefuel account)
+//       Spend: $51.86 | Clicks: 756 | Conversions: 322
+//       Codefuel revenue: $19.67 | Ad Clicks: 106 | Sessions: 695
+//
+//   • Lead Gen Affiliates 2 – SC (your Image Advantage account)
+//       Spend: $48.36 | Clicks: 849 | Conversions: 460
+//       Image Advantage revenue: $45.37
+//
+// When you look at the Accounts tab in your Taboola UI, you see both rows —
+// and the 1,605 clicks / 782 conversions you mentioned are the SUM of both
+// rows combined, not the Codefuel account alone.
+//
+// Your Codefuel API screenshot actually confirms this perfectly:
+// it shows Revenue $19.67, Ad Clicks 106, Sessions 695 — which matches our
+// dashboard exactly for that account.
+//
+// To make this clearer going forward, we've added two things to the dashboard:
+//   1. A "Showing X of Y accounts" indicator so you can always see which
+//      accounts are included in the totals you're looking at.
+//   2. Quick-filter buttons [All] [Codefuel] [Image Advantage] above the
+//      account picker so you can switch between views with one click.
+//   3. When you view the Campaigns tab with multiple accounts selected, each
+//      account's campaigns now show under a labelled group header with
+//      per-account subtotals.
+//
+// The data was always right — this was just a scoping question.
+// Let me know if anything looks off!

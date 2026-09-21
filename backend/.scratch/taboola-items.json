@@ -1,0 +1,131 @@
+[
+  {
+    "id": "4088081810",
+    "campaign_id": "43926808",
+    "type": "ITEM",
+    "url": "https://www.suggest24.com/search?q=Jornaypm+Coupon&gd=AP1008394&r=4088081810",
+    "thumbnail_url": "http://cdn.taboola.com/libtrc/static/thumbnails/GETTY_IMAGES/IBK/166678771__lrfIql4g.jpg",
+    "title": "Always Tired? Find Out Why",
+    "description": "Search for Excessive Sleepiness Symptoms.",
+    "approval_state": "APPROVED",
+    "is_active": true,
+    "status": "RUNNING",
+    "policy_review": {
+      "reject_reason": null,
+      "reject_reason_description": null,
+      "status_reason": null,
+      "reviewer_notes": null
+    },
+    "cta": {
+      "cta_type": "LEARN_MORE"
+    },
+    "creative_focus": {
+      "type": "AUTOMATIC",
+      "coordinates": null
+    },
+    "verification_pixel": null,
+    "viewability_tag": null,
+    "app_install": null,
+    "rating": null,
+    "logo": null,
+    "disclaimer": null,
+    "creative_crop": null,
+    "external_metadata": null,
+    "creative_type": "STATIC_IMAGE",
+    "performance_video_data": null,
+    "display_data": null,
+    "hierarchy_rep_item_id": null,
+    "hierarchy_data": null,
+    "custom_data": null,
+    "start_date": null,
+    "end_date": null,
+    "activity_schedule": null,
+    "orientation": "HORIZONTAL"
+  },
+  {
+    "id": "4088081813",
+    "campaign_id": "43926808",
+    "type": "ITEM",
+    "url": "https://www.suggest24.com/search?q=Jornaypm+Coupon&gd=AP1008139&r=4088081813",
+    "thumbnail_url": "http://cdn.taboola.com/libtrc/static/thumbnails/GETTY_IMAGES/IBK/142486964__O4Vo1kMq.jpg",
+    "title": "Discover Relief for Fatigue & Excessive Sleepiness - Find Answers Today",
+    "description": "Search for Excessive Sleepiness Symptoms.",
+    "approval_state": "APPROVED",
+    "is_active": false,
+    "status": "PAUSED",
+    "policy_review": {
+      "reject_reason": null,
+      "reject_reason_description": null,
+      "status_reason": null,
+      "reviewer_notes": null
+    },
+    "cta": {
+      "cta_type": "LEARN_MORE"
+    },
+    "creative_focus": {
+      "type": "AUTOMATIC",
+      "coordinates": null
+    },
+    "verification_pixel": null,
+    "viewability_tag": null,
+    "app_install": null,
+    "rating": null,
+    "logo": null,
+    "disclaimer": null,
+    "creative_crop": null,
+    "external_metadata": null,
+    "creative_type": "STATIC_IMAGE",
+    "performance_video_data": null,
+    "display_data": null,
+    "hierarchy_rep_item_id": null,
+    "hierarchy_data": null,
+    "custom_data": null,
+    "start_date": null,
+    "end_date": null,
+    "activity_schedule": null,
+    "orientation": "HORIZONTAL"
+  },
+  {
+    "id": "4088081817",
+    "campaign_id": "43926808",
+    "type": "ITEM",
+    "url": "https://www.suggest24.com/search?q=Jornaypm+Coupon&gd=AP1008394&r=4088081817",
+    "thumbnail_url": "http://cdn.taboola.com/libtrc/static/thumbnails/GETTY_IMAGES/IBK/528805280__GUrup3UZ.jpg",
+    "title": "Feeling Tired? Try This Now [Discover]",
+    "description": "Search for Excessive Sleepiness Symptoms.",
+    "approval_state": "REJECTED",
+    "is_active": true,
+    "status": "REJECTED",
+    "policy_review": {
+      "reject_reason": "THUMBNAIL_SEXUAL_OR_SUGGESTIVE",
+      "reject_reason_description": "Thumbnail uses sexual or suggestive language/imagery or implies that someone became overexposed. This includes language/imagery that suggests something sexual happened.",
+      "status_reason": null,
+      "reviewer_notes": "The ad's thumbnail uses sexual or suggestive imagery.  \n\nFor example: suggestive. \n\nPlease revise your ad to avoid using sexual innuendo or suggesting something sexual happened."
+    },
+    "cta": {
+      "cta_type": "LEARN_MORE"
+    },
+    "creative_focus": {
+      "type": "AUTOMATIC",
+      "coordinates": null
+    },
+    "verification_pixel": null,
+    "viewability_tag": null,
+    "app_install": null,
+    "rating": null,
+    "logo": null,
+    "disclaimer": null,
+    "creative_crop": null,
+    "external_metadata": null,
+    "creative_type": "STATIC_IMAGE",
+    "performance_video_data": null,
+    "display_data": null,
+    "hierarchy_rep_item_id": null,
+    "hierarchy_data": null,
+    "custom_data": null,
+    "start_date": null,
+    "end_date": null,
+    "activity_schedule": null,
+    "orientation": "HORIZONTAL"
+  }
+]

@@ -1,0 +1,78 @@
+services:
+  # ── API web service ──────────────────────────────────────────────────────────
+  - type: web
+    name: nadia-api
+    runtime: node
+    rootDir: backend
+    buildCommand: npm install && npm run build && npm run migrate:prod
+    startCommand: npm run start:api
+    plan: free
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: LOG_LEVEL
+        value: info
+      - key: ENABLE_CRON
+        value: "false"
+      # Set these in the Render dashboard — do NOT commit real values:
+      - key: DATABASE_URL
+        sync: false
+      - key: TABOOLA_CLIENT_ID
+        sync: false
+      - key: TABOOLA_CLIENT_SECRET
+        sync: false
+      - key: TABOOLA_ACCOUNT_ID
+        sync: false
+      - key: CODEFUEL_CLIENT_ID
+        sync: false
+      - key: CODEFUEL_CLIENT_SECRET
+        sync: false
+      - key: CORS_ORIGIN
+        sync: false   # set to your Vercel URL, e.g. https://nadia-dashboard.vercel.app
+
+  # ── Cron worker (background service) ────────────────────────────────────────
+  - type: worker
+    name: nadia-worker
+    runtime: node
+    rootDir: backend
+    buildCommand: npm install && npm run build
+    startCommand: npm run start:worker
+    plan: free
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: LOG_LEVEL
+        value: info
+      - key: ENABLE_CRON
+        value: "true"
+      - key: DATABASE_URL
+        sync: false
+      - key: TABOOLA_CLIENT_ID
+        sync: false
+      - key: TABOOLA_CLIENT_SECRET
+        sync: false
+      - key: TABOOLA_ACCOUNT_ID
+        sync: false
+      - key: CODEFUEL_CLIENT_ID
+        sync: false
+      - key: CODEFUEL_CLIENT_SECRET
+        sync: false
+      - key: DDC_REPORTING_URL
+        sync: false
+      - key: DDC_USERNAME
+        sync: false
+      - key: DDC_PASSWORD
+        sync: false
+      - key: DDC_HOURLY_API_BASE
+        sync: false
+      - key: DDC_HOURLY_AUTH_CODE
+        sync: false
+      # Daily client report email (Resend). REPORT_EMAIL_FROM must use a domain
+      # verified on the Resend account or delivery is restricted to the account
+      # owner's address.
+      - key: RESEND_API_KEY
+        sync: false
+      - key: REPORT_EMAIL_FROM
+        sync: false
+      - key: REPORT_EMAIL_TO
+        sync: false

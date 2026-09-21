@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl -s \"http://localhost:4000/api/stats?view=site&from=2026-05-01&to=2026-05-22\")",
+      "Bash(cat /tmp/api2.log | tail -15)",
+      "Read(//tmp/**)",
+      "Bash(curl -s -o /dev/null -w '%{http_code}' http://localhost:3000/dashboard/__TRACKED_VAR__)",
+      "Read(//c/c/Users/DELL/Desktop/nadia-dashboard/frontend/**)",
+      "Bash(python3 -c \"import json,sys; p=json.load\\(sys.stdin\\); deps={**p.get\\('dependencies',{}\\), **p.get\\('devDependencies',{}\\)}; print\\('\\\\n'.join\\(k for k in deps if 'supabase' in k.lower\\(\\)\\)\\)\")",
+      "Bash(npm install *)",
+      "Bash(./node_modules/.bin/tsx src/db/migrate.ts)",
+      "Bash(npx tsx *)",
+      "Bash(python3 -c ' *)",
+      "WebFetch(domain:app.theneo.io)",
+      "Bash(npm run *)",
+      "Bash(curl -s \"http://localhost:4000/api/stats?view=campaign&from=2026-06-08&to=2026-06-14&source=outbrain\" -o ob.json)",
+      "Bash(node -e ' *)",
+      "Bash(curl -s \"http://localhost:4000/api/stats?view=campaign&from=2026-06-08&to=2026-06-14\" -o tb.json)",
+      "Bash(node -e \"const d=require\\('./tb.json'\\);const r=d.rows||d;const s=k=>r.reduce\\(\\(a,x\\)=>a+\\(Number\\(x[k]\\)||0\\),0\\);console.log\\('taboola rows:',r.length,'cost \\\\$'+s\\('spent'\\).toFixed\\(2\\),'rev \\\\$'+s\\('revenue'\\).toFixed\\(2\\),'| any Outbrain leak:',r.some\\(x=>String\\(x.campaign_name||''\\).includes\\('Outbrain'\\)\\)\\);\")",
+      "PowerShell($c = Get-NetTCPConnection -LocalPort 4000 -State Listen -ErrorAction SilentlyContinue; if \\($c\\) { Stop-Process -Id $c[0].OwningProcess -Force -Confirm:$false; \"cleared\" } else { \"free\" })",
+      "Bash(node_modules/.bin/tsc --noEmit)"
+    ]
+  }
+}

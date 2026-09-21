@@ -1,0 +1,72 @@
+[
+  {
+    "date": "2026-05-21",
+    "hour": 23,
+    "country_code": "US",
+    "asset_gid": "AP1009313",
+    "channel": "7781203946",
+    "device": "Mobile",
+    "revenue": 0,
+    "ad_clicks": 0,
+    "ctr": null,
+    "rpc": null,
+    "sessions": 1,
+    "rpm": 0
+  },
+  {
+    "date": "2026-05-21",
+    "hour": 23,
+    "country_code": "US",
+    "asset_gid": "AP1009280",
+    "channel": "7795021836",
+    "device": "Mobile",
+    "revenue": 0.25,
+    "ad_clicks": 2,
+    "ctr": 5.26,
+    "rpc": 0.12,
+    "sessions": 38,
+    "rpm": 6.54
+  },
+  {
+    "date": "2026-05-21",
+    "hour": 23,
+    "country_code": "US",
+    "asset_gid": "AP1009280",
+    "channel": "7795021836",
+    "device": "Desktop",
+    "revenue": 0,
+    "ad_clicks": 0,
+    "ctr": null,
+    "rpc": null,
+    "sessions": 0,
+    "rpm": null
+  },
+  {
+    "date": "2026-05-21",
+    "hour": 23,
+    "country_code": "US",
+    "asset_gid": "AP1009280",
+    "channel": "7793847205",
+    "device": "Mobile",
+    "revenue": 0,
+    "ad_clicks": 0,
+    "ctr": null,
+    "rpc": null,
+    "sessions": 1,
+    "rpm": 0
+  },
+  {
+    "date": "2026-05-21",
+    "hour": 23,
+    "country_code": "US",
+    "asset_gid": "AP1009280",
+    "channel": "7789031452",
+    "device": "Tablet",
+    "revenue": 0.15,
+    "ad_clicks": 1,
+    "ctr": null,
+    "rpc": 0.15,
+    "sessions": 0,
+    "rpm": null
+  }
+]

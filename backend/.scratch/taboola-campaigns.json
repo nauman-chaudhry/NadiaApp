@@ -1,0 +1,1346 @@
+[
+  {
+    "id": "43856626",
+    "advertiser_id": "tdg-sevenspheremedia4433-yahoomedianet-sc",
+    "name": "Rideshare Accident Attorney",
+    "branding_text": "Accident Attorney | Search Ads",
+    "tracking_code": "utm_source=taboola&utm_medium=referral",
+    "pricing_model": "CPC",
+    "cpc": 0.1,
+    "safety_rating": "High",
+    "daily_cap": 5,
+    "daily_ad_delivery_model": "STRICT",
+    "spending_limit": null,
+    "spending_limit_model": "NONE",
+    "cpa_goal": 0,
+    "min_expected_conversions_for_cpa_goal": null,
+    "country_targeting": {
+      "type": "INCLUDE",
+      "value": [
+        "US"
+      ],
+      "href": null
+    },
+    "sub_country_targeting": {
+      "type": "INCLUDE",
+      "value": [
+        "MA",
+        "SC",
+        "SD",
+        "WI",
+        "OK",
+        "CA",
+        "MD",
+        "ME",
+        "IA",
+        "OH",
+        "TX",
+        "FL",
+        "DC",
+        "NM",
+        "HI",
+        "NY",
+        "NC",
+        "ND",
+        "AR",
+        "PA",
+        "CT",
+        "NJ",
+        "VT",
+        "RI",
+        "NE",
+        "AZ",
+        "NH",
+        "TN",
+        "IL",
+        "OR",
+        "IN",
+        "MS",
+        "UT",
+        "MN",
+        "MO",
+        "WY",
+        "VA",
+        "CO",
+        "KS",
+        "AK"
+      ],
+      "href": null
+    },
+    "dma_country_targeting": {
+      "type": "ALL",
+      "value": [],
+      "href": null
+    },
+    "region_country_targeting": {
+      "type": "INCLUDE",
+      "value": [
+        "MA",
+        "SC",
+        "SD",
+        "WI",
+        "OK",
+        "CA",
+        "MD",
+        "ME",
+        "IA",
+        "OH",
+        "TX",
+        "FL",
+        "DC",
+        "NM",
+        "HI",
+        "NY",
+        "NC",
+        "ND",
+        "AR",
+        "PA",
+        "CT",
+        "NJ",
+        "VT",
+        "RI",
+        "NE",
+        "AZ",
+        "NH",
+        "TN",
+        "IL",
+        "OR",
+        "IN",
+        "MS",
+        "UT",
+        "MN",
+        "MO",
+        "WY",
+        "VA",
+        "CO",
+        "KS",
+        "AK"
+      ],
+      "href": null
+    },
+    "city_targeting": {
+      "type": "ALL",
+      "value": [],
+      "href": null
+    },
+    "postal_code_targeting": {
+      "type": "ALL",
+      "value": null,
+      "href": "https://backstage.taboola.com/backstage/api/1.0/tdg-sevenspheremedia4433-yahoomedianet-sc/campaigns/43856626/targeting/postal_code"
+    },
+    "contextual_targeting": {
+      "type": "ALL",
+      "value": [],
+      "href": null
+    },
+    "platform_targeting": {
+      "type": "INCLUDE",
+      "value": [
+        "PHON",
+        "TBLT"
+      ],
+      "href": null
+    },
+    "publisher_targeting": {
+      "type": "ALL",
+      "value": [],
+      "href": null
+    },
+    "auto_publisher_targeting": {
+      "type": "ALL",
+      "value": [],
+      "href": null
+    },
+    "os_targeting": {
+      "type": "ALL",
+      "value": [],
+      "href": null
+    },
+    "connection_type_targeting": {
+      "type": "ALL",
+      "value": [],
+      "href": null
+    },
+    "app_restriction_targeting": {
+      "type": "ALL",
+      "value": [],
+      "href": null
+    },
+    "publisher_bid_modifier": {
+      "values": []
+    },
+    "platform_bid_modifier": {
+      "values": []
+    },
+    "publisher_platform_bid_modifier": {
+      "values": []
+    },
+    "day_time_bid_modifier": {
+      "values": [],
+      "time_zone": null
+    },
+    "publisher_bid_strategy_modifiers": {
+      "values": []
+    },
+    "campaign_profile": null,
+    "comments": "",
+    "spent": 0,
+    "bid_type": "OPTIMIZED_CONVERSIONS",
+    "bid_strategy": "SMART",
+    "traffic_allocation_mode": "OPTIMIZED",
+    "external_brand_safety": null,
+    "campaign_group_id": null,
+    "campaign_groups": null,
+    "target_cpa": null,
+    "learning_state": "LEARNING_LIMITED",
+    "cvr_learning_status": "CVR_LEARNING_LIMITED",
+    "target_cpa_learning_status": null,
+    "conversion_rules": {
+      "rules": []
+    },
+    "funnel_template": null,
+    "start_date": "2025-01-16",
+    "end_date": "9999-12-31",
+    "start_date_in_utc": "2025-01-16 00:00:00",
+    "end_date_in_utc": "9999-12-31 23:59:59",
+    "traffic_allocation_ab_test_end_date": null,
+    "approval_state": "APPROVED",
+    "is_active": false,
+    "status": "PAUSED",
+    "audience_segments_multi_targeting": {
+      "state": "ALL",
+      "value": null,
+      "href": "https://backstage.taboola.com/backstage/api/1.0/tdg-sevenspheremedia4433-yahoomedianet-sc/campaigns/43856626/targeting/audience_segments"
+    },
+    "contextual_segments_targeting": {
+      "state": "ALL",
+      "value": null,
+      "href": "https://backstage.taboola.com/backstage/api/1.0/tdg-sevenspheremedia4433-yahoomedianet-sc/campaigns/43856626/targeting/contextual_segments"
+    },
+    "custom_contextual_targeting": {
+      "state": "ALL",
+      "value": null,
+      "href": "https://backstage.taboola.com/backstage/api/1.0/tdg-sevenspheremedia4433-yahoomedianet-sc/campaigns/43856626/targeting/custom_contextual_segments"
+    },
+    "audiences_targeting": {
+      "state": "ALL",
+      "value": null,
+      "href": "https://backstage.taboola.com/backstage/api/1.0/tdg-sevenspheremedia4433-yahoomedianet-sc/campaigns/43856626/targeting/audiences"
+    },
+    "custom_audience_targeting": {
+      "state": "ALL",
+      "value": null,
+      "href": "https://backstage.taboola.com/backstage/api/1.0/tdg-sevenspheremedia4433-yahoomedianet-sc/campaigns/43856626/targeting/custom_audience"
+    },
+    "segments_targeting": {
+      "AGE": {
+        "type": "ALL",
+        "value": [],
+        "href": "https://backstage.taboola.com/backstage/api/1.0/tdg-sevenspheremedia4433-yahoomedianet-sc/campaigns/43856626/targeting/age_segments"
+      },
+      "GENDER": {
+        "type": "ALL",
+        "value": [],
+        "href": "https://backstage.taboola.com/backstage/api/1.0/tdg-sevenspheremedia4433-yahoomedianet-sc/campaigns/43856626/targeting/gender_segments"
+      }
+    },
+    "segments_multi_targeting": null,
+    "marking_label_multi_targeting": {
+      "state": "ALL",
+      "value": null,
+      "href": "https://backstage.taboola.com/backstage/api/1.0/tdg-sevenspheremedia4433-yahoomedianet-sc/campaigns/43856626/targeting/marking_labels"
+    },
+    "lookalike_audience_targeting": {
+      "state": "ALL",
+      "value": null,
+      "href": "https://backstage.taboola.com/backstage/api/1.0/tdg-sevenspheremedia4433-yahoomedianet-sc/campaigns/43856626/targeting/lookalike_audience"
+    },
+    "predefined_targeting_options": {
+      "predefined_supply_targeting": "ALL"
+    },
+    "marketing_objective": "LEADS_GENERATION",
+    "verification_pixel": null,
+    "viewability_tag": null,
+    "activity_schedule": {
+      "mode": "ALWAYS",
+      "rules": [],
+      "time_zone": "UTC"
+    },
+    "policy_review": {
+      "reject_reason": null,
+      "reject_reason_description": null,
+      "reviewer_notes": null
+    },
+    "browser_targeting": {
+      "type": "ALL",
+      "value": [],
+      "href": null
+    },
+    "type": "PAID",
+    "external_metadata": null,
+    "is_spend_guard_active": "ACTIVE",
+    "frequency_capping_targeting": {
+      "threshold": null,
+      "frequency_capping_days": "NONE"
+    },
+    "campaign_item_type": "HAS_REGULAR_ITEMS",
+    "performance_rule_ids": [],
+    "budget_additional_parameters": {
+      "pace_ahead_factor": 1
+    }
+  },
+  {
+    "id": "43856647",
+    "advertiser_id": "tdg-sevenspheremedia4433-yahoomedianet-sc",
+    "name": "Best AI Tools",
+    "branding_text": "Best AI Tools | Search Ads",
+    "tracking_code": "utm_source=taboola&utm_medium=referral",
+    "pricing_model": "CPC",
+    "cpc": 0.1,
+    "safety_rating": "High",
+    "daily_cap": 5,
+    "daily_ad_delivery_model": "STRICT",
+    "spending_limit": null,
+    "spending_limit_model": "NONE",
+    "cpa_goal": 0,
+    "min_expected_conversions_for_cpa_goal": null,
+    "country_targeting": {
+      "type": "INCLUDE",
+      "value": [
+        "US"
+      ],
+      "href": null
+    },
+    "sub_country_targeting": {
+      "type": "INCLUDE",
+      "value": [
+        "MA",
+        "ID",
+        "MI",
+        "MD",
+        "ME",
+        "IA",
+        "TX",
+        "DC",
+        "DE",
+        "HI",
+        "NC",
+        "ND",
+        "AR",
+        "NJ",
+        "VT",
+        "RI",
+        "NE",
+        "AZ",
+        "NH",
+        "IL",
+        "IN",
+        "MS",
+        "UT",
+        "MN",
+        "MO",
+        "AL",
+        "VA",
+        "MT",
+        "AK",
+        "SC",
+        "SD",
+        "WI",
+        "OK",
+        "CA",
+        "OH",
+        "GA",
+        "FL",
+        "NM",
+        "NY",
+        "NV",
+        "WA",
+        "LA",
+        "PA",
+        "CT",
+        "TN",
+        "OR",
+        "WV",
+        "WY",
+        "CO",
+        "KY",
+        "KS"
+      ],
+      "href": null
+    },
+    "dma_country_targeting": {
+      "type": "ALL",
+      "value": [],
+      "href": null
+    },
+    "region_country_targeting": {
+      "type": "INCLUDE",
+      "value": [
+        "MA",
+        "ID",
+        "MI",
+        "MD",
+        "ME",
+        "IA",
+        "TX",
+        "DC",
+        "DE",
+        "HI",
+        "NC",
+        "ND",
+        "AR",
+        "NJ",
+        "VT",
+        "RI",
+        "NE",
+        "AZ",
+        "NH",
+        "IL",
+        "IN",
+        "MS",
+        "UT",
+        "MN",
+        "MO",
+        "AL",
+        "VA",
+        "MT",
+        "AK",
+        "SC",
+        "SD",
+        "WI",
+        "OK",
+        "CA",
+        "OH",
+        "GA",
+        "FL",
+        "NM",
+        "NY",
+        "NV",
+        "WA",
+        "LA",
+        "PA",
+        "CT",
+        "TN",
+        "OR",
+        "WV",
+        "WY",
+        "CO",
+        "KY",
+        "KS"
+      ],
+      "href": null
+    },
+    "city_targeting": {
+      "type": "ALL",
+      "value": [],
+      "href": null
+    },
+    "postal_code_targeting": {
+      "type": "ALL",
+      "value": null,
+      "href": "https://backstage.taboola.com/backstage/api/1.0/tdg-sevenspheremedia4433-yahoomedianet-sc/campaigns/43856647/targeting/postal_code"
+    },
+    "contextual_targeting": {
+      "type": "ALL",
+      "value": [],
+      "href": null
+    },
+    "platform_targeting": {
+      "type": "INCLUDE",
+      "value": [
+        "DESK",
+        "TBLT"
+      ],
+      "href": null
+    },
+    "publisher_targeting": {
+      "type": "ALL",
+      "value": [],
+      "href": null
+    },
+    "auto_publisher_targeting": {
+      "type": "ALL",
+      "value": [],
+      "href": null
+    },
+    "os_targeting": {
+      "type": "ALL",
+      "value": [],
+      "href": null
+    },
+    "connection_type_targeting": {
+      "type": "ALL",
+      "value": [],
+      "href": null
+    },
+    "app_restriction_targeting": {
+      "type": "ALL",
+      "value": [],
+      "href": null
+    },
+    "publisher_bid_modifier": {
+      "values": []
+    },
+    "platform_bid_modifier": {
+      "values": []
+    },
+    "publisher_platform_bid_modifier": {
+      "values": []
+    },
+    "day_time_bid_modifier": {
+      "values": [],
+      "time_zone": null
+    },
+    "publisher_bid_strategy_modifiers": {
+      "values": []
+    },
+    "campaign_profile": null,
+    "comments": "",
+    "spent": 0,
+    "bid_type": "OPTIMIZED_CONVERSIONS",
+    "bid_strategy": "SMART",
+    "traffic_allocation_mode": "OPTIMIZED",
+    "external_brand_safety": null,
+    "campaign_group_id": null,
+    "campaign_groups": null,
+    "target_cpa": null,
+    "learning_state": "LEARNING_LIMITED",
+    "cvr_learning_status": "CVR_LEARNING_LIMITED",
+    "target_cpa_learning_status": null,
+    "conversion_rules": {
+      "rules": []
+    },
+    "funnel_template": null,
+    "start_date": "2025-01-16",
+    "end_date": "9999-12-31",
+    "start_date_in_utc": "2025-01-16 00:00:00",
+    "end_date_in_utc": "9999-12-31 23:59:59",
+    "traffic_allocation_ab_test_end_date": null,
+    "approval_state": "APPROVED",
+    "is_active": false,
+    "status": "PAUSED",
+    "audience_segments_multi_targeting": {
+      "state": "ALL",
+      "value": null,
+      "href": "https://backstage.taboola.com/backstage/api/1.0/tdg-sevenspheremedia4433-yahoomedianet-sc/campaigns/43856647/targeting/audience_segments"
+    },
+    "contextual_segments_targeting": {
+      "state": "ALL",
+      "value": null,
+      "href": "https://backstage.taboola.com/backstage/api/1.0/tdg-sevenspheremedia4433-yahoomedianet-sc/campaigns/43856647/targeting/contextual_segments"
+    },
+    "custom_contextual_targeting": {
+      "state": "ALL",
+      "value": null,
+      "href": "https://backstage.taboola.com/backstage/api/1.0/tdg-sevenspheremedia4433-yahoomedianet-sc/campaigns/43856647/targeting/custom_contextual_segments"
+    },
+    "audiences_targeting": {
+      "state": "ALL",
+      "value": null,
+      "href": "https://backstage.taboola.com/backstage/api/1.0/tdg-sevenspheremedia4433-yahoomedianet-sc/campaigns/43856647/targeting/audiences"
+    },
+    "custom_audience_targeting": {
+      "state": "ALL",
+      "value": null,
+      "href": "https://backstage.taboola.com/backstage/api/1.0/tdg-sevenspheremedia4433-yahoomedianet-sc/campaigns/43856647/targeting/custom_audience"
+    },
+    "segments_targeting": {
+      "AGE": {
+        "type": "ALL",
+        "value": [],
+        "href": "https://backstage.taboola.com/backstage/api/1.0/tdg-sevenspheremedia4433-yahoomedianet-sc/campaigns/43856647/targeting/age_segments"
+      },
+      "GENDER": {
+        "type": "ALL",
+        "value": [],
+        "href": "https://backstage.taboola.com/backstage/api/1.0/tdg-sevenspheremedia4433-yahoomedianet-sc/campaigns/43856647/targeting/gender_segments"
+      }
+    },
+    "segments_multi_targeting": null,
+    "marking_label_multi_targeting": {
+      "state": "ALL",
+      "value": null,
+      "href": "https://backstage.taboola.com/backstage/api/1.0/tdg-sevenspheremedia4433-yahoomedianet-sc/campaigns/43856647/targeting/marking_labels"
+    },
+    "lookalike_audience_targeting": {
+      "state": "ALL",
+      "value": null,
+      "href": "https://backstage.taboola.com/backstage/api/1.0/tdg-sevenspheremedia4433-yahoomedianet-sc/campaigns/43856647/targeting/lookalike_audience"
+    },
+    "predefined_targeting_options": {
+      "predefined_supply_targeting": "ALL"
+    },
+    "marketing_objective": "LEADS_GENERATION",
+    "verification_pixel": null,
+    "viewability_tag": null,
+    "activity_schedule": {
+      "mode": "ALWAYS",
+      "rules": [],
+      "time_zone": "UTC"
+    },
+    "policy_review": {
+      "reject_reason": null,
+      "reject_reason_description": null,
+      "reviewer_notes": null
+    },
+    "browser_targeting": {
+      "type": "ALL",
+      "value": [],
+      "href": null
+    },
+    "type": "PAID",
+    "external_metadata": null,
+    "is_spend_guard_active": "ACTIVE",
+    "frequency_capping_targeting": {
+      "threshold": null,
+      "frequency_capping_days": "NONE"
+    },
+    "campaign_item_type": "HAS_REGULAR_ITEMS",
+    "performance_rule_ids": [],
+    "budget_additional_parameters": {
+      "pace_ahead_factor": 1
+    }
+  },
+  {
+    "id": "43856657",
+    "advertiser_id": "tdg-sevenspheremedia4433-yahoomedianet-sc",
+    "name": "Bachelors Degree Nursing",
+    "branding_text": " Online Nursing Degree | Search Ads",
+    "tracking_code": "utm_source=taboola&utm_medium=referral",
+    "pricing_model": "CPC",
+    "cpc": 0.1,
+    "safety_rating": "High",
+    "daily_cap": 5,
+    "daily_ad_delivery_model": "STRICT",
+    "spending_limit": null,
+    "spending_limit_model": "NONE",
+    "cpa_goal": 0,
+    "min_expected_conversions_for_cpa_goal": null,
+    "country_targeting": {
+      "type": "INCLUDE",
+      "value": [
+        "US"
+      ],
+      "href": null
+    },
+    "sub_country_targeting": {
+      "type": "INCLUDE",
+      "value": [
+        "MA",
+        "ID",
+        "MI",
+        "MD",
+        "ME",
+        "IA",
+        "TX",
+        "DC",
+        "DE",
+        "HI",
+        "NC",
+        "ND",
+        "AR",
+        "NJ",
+        "VT",
+        "RI",
+        "NE",
+        "AZ",
+        "NH",
+        "IL",
+        "IN",
+        "MS",
+        "UT",
+        "MN",
+        "MO",
+        "AL",
+        "VA",
+        "MT",
+        "AK",
+        "SC",
+        "SD",
+        "WI",
+        "OK",
+        "CA",
+        "OH",
+        "GA",
+        "FL",
+        "NM",
+        "NY",
+        "NV",
+        "WA",
+        "LA",
+        "PA",
+        "CT",
+        "TN",
+        "OR",
+        "WV",
+        "WY",
+        "CO",
+        "KY",
+        "KS"
+      ],
+      "href": null
+    },
+    "dma_country_targeting": {
+      "type": "ALL",
+      "value": [],
+      "href": null
+    },
+    "region_country_targeting": {
+      "type": "INCLUDE",
+      "value": [
+        "MA",
+        "ID",
+        "MI",
+        "MD",
+        "ME",
+        "IA",
+        "TX",
+        "DC",
+        "DE",
+        "HI",
+        "NC",
+        "ND",
+        "AR",
+        "NJ",
+        "VT",
+        "RI",
+        "NE",
+        "AZ",
+        "NH",
+        "IL",
+        "IN",
+        "MS",
+        "UT",
+        "MN",
+        "MO",
+        "AL",
+        "VA",
+        "MT",
+        "AK",
+        "SC",
+        "SD",
+        "WI",
+        "OK",
+        "CA",
+        "OH",
+        "GA",
+        "FL",
+        "NM",
+        "NY",
+        "NV",
+        "WA",
+        "LA",
+        "PA",
+        "CT",
+        "TN",
+        "OR",
+        "WV",
+        "WY",
+        "CO",
+        "KY",
+        "KS"
+      ],
+      "href": null
+    },
+    "city_targeting": {
+      "type": "ALL",
+      "value": [],
+      "href": null
+    },
+    "postal_code_targeting": {
+      "type": "ALL",
+      "value": null,
+      "href": "https://backstage.taboola.com/backstage/api/1.0/tdg-sevenspheremedia4433-yahoomedianet-sc/campaigns/43856657/targeting/postal_code"
+    },
+    "contextual_targeting": {
+      "type": "ALL",
+      "value": [],
+      "href": null
+    },
+    "platform_targeting": {
+      "type": "INCLUDE",
+      "value": [
+        "DESK",
+        "TBLT"
+      ],
+      "href": null
+    },
+    "publisher_targeting": {
+      "type": "ALL",
+      "value": [],
+      "href": null
+    },
+    "auto_publisher_targeting": {
+      "type": "ALL",
+      "value": [],
+      "href": null
+    },
+    "os_targeting": {
+      "type": "ALL",
+      "value": [],
+      "href": null
+    },
+    "connection_type_targeting": {
+      "type": "ALL",
+      "value": [],
+      "href": null
+    },
+    "app_restriction_targeting": {
+      "type": "ALL",
+      "value": [],
+      "href": null
+    },
+    "publisher_bid_modifier": {
+      "values": []
+    },
+    "platform_bid_modifier": {
+      "values": []
+    },
+    "publisher_platform_bid_modifier": {
+      "values": []
+    },
+    "day_time_bid_modifier": {
+      "values": [],
+      "time_zone": null
+    },
+    "publisher_bid_strategy_modifiers": {
+      "values": []
+    },
+    "campaign_profile": null,
+    "comments": "",
+    "spent": 0,
+    "bid_type": "OPTIMIZED_CONVERSIONS",
+    "bid_strategy": "SMART",
+    "traffic_allocation_mode": "OPTIMIZED",
+    "external_brand_safety": null,
+    "campaign_group_id": null,
+    "campaign_groups": null,
+    "target_cpa": null,
+    "learning_state": "LEARNING_LIMITED",
+    "cvr_learning_status": "CVR_LEARNING_LIMITED",
+    "target_cpa_learning_status": null,
+    "conversion_rules": {
+      "rules": []
+    },
+    "funnel_template": null,
+    "start_date": "2025-01-16",
+    "end_date": "9999-12-31",
+    "start_date_in_utc": "2025-01-16 00:00:00",
+    "end_date_in_utc": "9999-12-31 23:59:59",
+    "traffic_allocation_ab_test_end_date": null,
+    "approval_state": "APPROVED",
+    "is_active": false,
+    "status": "PAUSED",
+    "audience_segments_multi_targeting": {
+      "state": "ALL",
+      "value": null,
+      "href": "https://backstage.taboola.com/backstage/api/1.0/tdg-sevenspheremedia4433-yahoomedianet-sc/campaigns/43856657/targeting/audience_segments"
+    },
+    "contextual_segments_targeting": {
+      "state": "ALL",
+      "value": null,
+      "href": "https://backstage.taboola.com/backstage/api/1.0/tdg-sevenspheremedia4433-yahoomedianet-sc/campaigns/43856657/targeting/contextual_segments"
+    },
+    "custom_contextual_targeting": {
+      "state": "ALL",
+      "value": null,
+      "href": "https://backstage.taboola.com/backstage/api/1.0/tdg-sevenspheremedia4433-yahoomedianet-sc/campaigns/43856657/targeting/custom_contextual_segments"
+    },
+    "audiences_targeting": {
+      "state": "ALL",
+      "value": null,
+      "href": "https://backstage.taboola.com/backstage/api/1.0/tdg-sevenspheremedia4433-yahoomedianet-sc/campaigns/43856657/targeting/audiences"
+    },
+    "custom_audience_targeting": {
+      "state": "ALL",
+      "value": null,
+      "href": "https://backstage.taboola.com/backstage/api/1.0/tdg-sevenspheremedia4433-yahoomedianet-sc/campaigns/43856657/targeting/custom_audience"
+    },
+    "segments_targeting": {
+      "AGE": {
+        "type": "ALL",
+        "value": [],
+        "href": "https://backstage.taboola.com/backstage/api/1.0/tdg-sevenspheremedia4433-yahoomedianet-sc/campaigns/43856657/targeting/age_segments"
+      },
+      "GENDER": {
+        "type": "ALL",
+        "value": [],
+        "href": "https://backstage.taboola.com/backstage/api/1.0/tdg-sevenspheremedia4433-yahoomedianet-sc/campaigns/43856657/targeting/gender_segments"
+      }
+    },
+    "segments_multi_targeting": null,
+    "marking_label_multi_targeting": {
+      "state": "ALL",
+      "value": null,
+      "href": "https://backstage.taboola.com/backstage/api/1.0/tdg-sevenspheremedia4433-yahoomedianet-sc/campaigns/43856657/targeting/marking_labels"
+    },
+    "lookalike_audience_targeting": {
+      "state": "ALL",
+      "value": null,
+      "href": "https://backstage.taboola.com/backstage/api/1.0/tdg-sevenspheremedia4433-yahoomedianet-sc/campaigns/43856657/targeting/lookalike_audience"
+    },
+    "predefined_targeting_options": {
+      "predefined_supply_targeting": "ALL"
+    },
+    "marketing_objective": "LEADS_GENERATION",
+    "verification_pixel": null,
+    "viewability_tag": null,
+    "activity_schedule": {
+      "mode": "ALWAYS",
+      "rules": [],
+      "time_zone": "UTC"
+    },
+    "policy_review": {
+      "reject_reason": null,
+      "reject_reason_description": null,
+      "reviewer_notes": null
+    },
+    "browser_targeting": {
+      "type": "ALL",
+      "value": [],
+      "href": null
+    },
+    "type": "PAID",
+    "external_metadata": null,
+    "is_spend_guard_active": "ACTIVE",
+    "frequency_capping_targeting": {
+      "threshold": null,
+      "frequency_capping_days": "NONE"
+    },
+    "campaign_item_type": "HAS_REGULAR_ITEMS",
+    "performance_rule_ids": [],
+    "budget_additional_parameters": {
+      "pace_ahead_factor": 1
+    }
+  },
+  {
+    "id": "43926808",
+    "advertiser_id": "tdg-sevenspheremedia4433-adv1-sc",
+    "name": "Sleep Disorder_V2_Desk",
+    "branding_text": "Sleep Disorder Symptoms | Search Ads",
+    "tracking_code": "utm_source=taboola&utm_medium=referral&subid={click_id}&stid={site_id}",
+    "pricing_model": "CPC",
+    "cpc": 0.1,
+    "safety_rating": "High",
+    "daily_cap": 5,
+    "daily_ad_delivery_model": "STRICT",
+    "spending_limit": null,
+    "spending_limit_model": "NONE",
+    "cpa_goal": 0.4,
+    "min_expected_conversions_for_cpa_goal": null,
+    "country_targeting": {
+      "type": "INCLUDE",
+      "value": [
+        "US"
+      ],
+      "href": null
+    },
+    "sub_country_targeting": {
+      "type": "ALL",
+      "value": [],
+      "href": null
+    },
+    "dma_country_targeting": {
+      "type": "ALL",
+      "value": [],
+      "href": null
+    },
+    "region_country_targeting": {
+      "type": "ALL",
+      "value": [],
+      "href": null
+    },
+    "city_targeting": {
+      "type": "ALL",
+      "value": [],
+      "href": null
+    },
+    "postal_code_targeting": {
+      "type": "ALL",
+      "value": null,
+      "href": "https://backstage.taboola.com/backstage/api/1.0/tdg-sevenspheremedia4433-adv1-sc/campaigns/43926808/targeting/postal_code"
+    },
+    "contextual_targeting": {
+      "type": "ALL",
+      "value": [],
+      "href": null
+    },
+    "platform_targeting": {
+      "type": "INCLUDE",
+      "value": [
+        "DESK",
+        "TBLT"
+      ],
+      "href": null
+    },
+    "publisher_targeting": {
+      "type": "ALL",
+      "value": [],
+      "href": null
+    },
+    "auto_publisher_targeting": {
+      "type": "ALL",
+      "value": [],
+      "href": null
+    },
+    "os_targeting": {
+      "type": "ALL",
+      "value": [],
+      "href": null
+    },
+    "connection_type_targeting": {
+      "type": "ALL",
+      "value": [],
+      "href": null
+    },
+    "app_restriction_targeting": {
+      "type": "ALL",
+      "value": [],
+      "href": null
+    },
+    "publisher_bid_modifier": {
+      "values": []
+    },
+    "platform_bid_modifier": {
+      "values": []
+    },
+    "publisher_platform_bid_modifier": {
+      "values": []
+    },
+    "day_time_bid_modifier": {
+      "values": [],
+      "time_zone": null
+    },
+    "publisher_bid_strategy_modifiers": {
+      "values": []
+    },
+    "campaign_profile": null,
+    "comments": "",
+    "spent": 0,
+    "bid_type": "OPTIMIZED_CONVERSIONS",
+    "bid_strategy": "SMART",
+    "traffic_allocation_mode": "OPTIMIZED",
+    "external_brand_safety": null,
+    "campaign_group_id": null,
+    "campaign_groups": null,
+    "target_cpa": null,
+    "learning_state": "EMPTY_DISPLAY",
+    "cvr_learning_status": "CVR_LEARNING_COMPLETE",
+    "target_cpa_learning_status": null,
+    "conversion_rules": {
+      "rules": []
+    },
+    "funnel_template": null,
+    "start_date": "2025-01-24",
+    "end_date": "9999-12-31",
+    "start_date_in_utc": "2025-01-24 00:00:00",
+    "end_date_in_utc": "9999-12-31 23:59:59",
+    "traffic_allocation_ab_test_end_date": null,
+    "approval_state": "APPROVED",
+    "is_active": false,
+    "status": "PAUSED",
+    "audience_segments_multi_targeting": {
+      "state": "ALL",
+      "value": null,
+      "href": "https://backstage.taboola.com/backstage/api/1.0/tdg-sevenspheremedia4433-adv1-sc/campaigns/43926808/targeting/audience_segments"
+    },
+    "contextual_segments_targeting": {
+      "state": "ALL",
+      "value": null,
+      "href": "https://backstage.taboola.com/backstage/api/1.0/tdg-sevenspheremedia4433-adv1-sc/campaigns/43926808/targeting/contextual_segments"
+    },
+    "custom_contextual_targeting": {
+      "state": "ALL",
+      "value": null,
+      "href": "https://backstage.taboola.com/backstage/api/1.0/tdg-sevenspheremedia4433-adv1-sc/campaigns/43926808/targeting/custom_contextual_segments"
+    },
+    "audiences_targeting": {
+      "state": "ALL",
+      "value": null,
+      "href": "https://backstage.taboola.com/backstage/api/1.0/tdg-sevenspheremedia4433-adv1-sc/campaigns/43926808/targeting/audiences"
+    },
+    "custom_audience_targeting": {
+      "state": "ALL",
+      "value": null,
+      "href": "https://backstage.taboola.com/backstage/api/1.0/tdg-sevenspheremedia4433-adv1-sc/campaigns/43926808/targeting/custom_audience"
+    },
+    "segments_targeting": {
+      "AGE": {
+        "type": "ALL",
+        "value": [],
+        "href": "https://backstage.taboola.com/backstage/api/1.0/tdg-sevenspheremedia4433-adv1-sc/campaigns/43926808/targeting/age_segments"
+      },
+      "GENDER": {
+        "type": "ALL",
+        "value": [],
+        "href": "https://backstage.taboola.com/backstage/api/1.0/tdg-sevenspheremedia4433-adv1-sc/campaigns/43926808/targeting/gender_segments"
+      }
+    },
+    "segments_multi_targeting": null,
+    "marking_label_multi_targeting": {
+      "state": "ALL",
+      "value": null,
+      "href": "https://backstage.taboola.com/backstage/api/1.0/tdg-sevenspheremedia4433-adv1-sc/campaigns/43926808/targeting/marking_labels"
+    },
+    "lookalike_audience_targeting": {
+      "state": "ALL",
+      "value": null,
+      "href": "https://backstage.taboola.com/backstage/api/1.0/tdg-sevenspheremedia4433-adv1-sc/campaigns/43926808/targeting/lookalike_audience"
+    },
+    "predefined_targeting_options": {
+      "predefined_supply_targeting": "ALL"
+    },
+    "marketing_objective": "LEADS_GENERATION",
+    "verification_pixel": null,
+    "viewability_tag": null,
+    "activity_schedule": {
+      "mode": "ALWAYS",
+      "rules": [],
+      "time_zone": "GMT"
+    },
+    "policy_review": {
+      "reject_reason": "TITLE_ABSOLUTE_LANGUAGE_IN_HEALTH_CLAIMS",
+      "reject_reason_description": "Title uses absolute language.",
+      "reviewer_notes": null
+    },
+    "browser_targeting": {
+      "type": "ALL",
+      "value": [],
+      "href": null
+    },
+    "type": "PAID",
+    "external_metadata": null,
+    "is_spend_guard_active": "ACTIVE",
+    "frequency_capping_targeting": {
+      "threshold": null,
+      "frequency_capping_days": "NONE"
+    },
+    "campaign_item_type": "HAS_REGULAR_ITEMS",
+    "performance_rule_ids": [
+      19792,
+      12849,
+      20087,
+      12474,
+      20091,
+      18892
+    ],
+    "budget_additional_parameters": {
+      "pace_ahead_factor": 1
+    }
+  },
+  {
+    "id": "43936851",
+    "advertiser_id": "tdg-sevenspheremedia4433-adv1-sc",
+    "name": "Sleep Disorder_Ritalin_Desk",
+    "branding_text": "Sleep Disorder Symptoms | Search Ads",
+    "tracking_code": "utm_source=taboola&utm_medium=referral&subid={click_id}&stid={site_id}",
+    "pricing_model": "CPC",
+    "cpc": 0.1,
+    "safety_rating": "High",
+    "daily_cap": 3,
+    "daily_ad_delivery_model": "STRICT",
+    "spending_limit": null,
+    "spending_limit_model": "NONE",
+    "cpa_goal": 0.12,
+    "min_expected_conversions_for_cpa_goal": null,
+    "country_targeting": {
+      "type": "INCLUDE",
+      "value": [
+        "US"
+      ],
+      "href": null
+    },
+    "sub_country_targeting": {
+      "type": "ALL",
+      "value": [],
+      "href": null
+    },
+    "dma_country_targeting": {
+      "type": "ALL",
+      "value": [],
+      "href": null
+    },
+    "region_country_targeting": {
+      "type": "ALL",
+      "value": [],
+      "href": null
+    },
+    "city_targeting": {
+      "type": "ALL",
+      "value": [],
+      "href": null
+    },
+    "postal_code_targeting": {
+      "type": "ALL",
+      "value": null,
+      "href": "https://backstage.taboola.com/backstage/api/1.0/tdg-sevenspheremedia4433-adv1-sc/campaigns/43936851/targeting/postal_code"
+    },
+    "contextual_targeting": {
+      "type": "ALL",
+      "value": [],
+      "href": null
+    },
+    "platform_targeting": {
+      "type": "INCLUDE",
+      "value": [
+        "DESK",
+        "TBLT"
+      ],
+      "href": null
+    },
+    "publisher_targeting": {
+      "type": "ALL",
+      "value": [],
+      "href": null
+    },
+    "auto_publisher_targeting": {
+      "type": "ALL",
+      "value": [],
+      "href": null
+    },
+    "os_targeting": {
+      "type": "ALL",
+      "value": [],
+      "href": null
+    },
+    "connection_type_targeting": {
+      "type": "ALL",
+      "value": [],
+      "href": null
+    },
+    "app_restriction_targeting": {
+      "type": "ALL",
+      "value": [],
+      "href": null
+    },
+    "publisher_bid_modifier": {
+      "values": []
+    },
+    "platform_bid_modifier": {
+      "values": []
+    },
+    "publisher_platform_bid_modifier": {
+      "values": []
+    },
+    "day_time_bid_modifier": {
+      "values": [],
+      "time_zone": null
+    },
+    "publisher_bid_strategy_modifiers": {
+      "values": []
+    },
+    "campaign_profile": null,
+    "comments": "",
+    "spent": 0,
+    "bid_type": "OPTIMIZED_CONVERSIONS",
+    "bid_strategy": "SMART",
+    "traffic_allocation_mode": "OPTIMIZED",
+    "external_brand_safety": null,
+    "campaign_group_id": null,
+    "campaign_groups": null,
+    "target_cpa": null,
+    "learning_state": "LEARNING_LIMITED",
+    "cvr_learning_status": "CVR_LEARNING_COMPLETE",
+    "target_cpa_learning_status": null,
+    "conversion_rules": {
+      "rules": []
+    },
+    "funnel_template": null,
+    "start_date": "2025-01-25",
+    "end_date": "9999-12-31",
+    "start_date_in_utc": "2025-01-25 00:00:00",
+    "end_date_in_utc": "9999-12-31 23:59:59",
+    "traffic_allocation_ab_test_end_date": null,
+    "approval_state": "APPROVED",
+    "is_active": false,
+    "status": "PAUSED",
+    "audience_segments_multi_targeting": {
+      "state": "ALL",
+      "value": null,
+      "href": "https://backstage.taboola.com/backstage/api/1.0/tdg-sevenspheremedia4433-adv1-sc/campaigns/43936851/targeting/audience_segments"
+    },
+    "contextual_segments_targeting": {
+      "state": "ALL",
+      "value": null,
+      "href": "https://backstage.taboola.com/backstage/api/1.0/tdg-sevenspheremedia4433-adv1-sc/campaigns/43936851/targeting/contextual_segments"
+    },
+    "custom_contextual_targeting": {
+      "state": "ALL",
+      "value": null,
+      "href": "https://backstage.taboola.com/backstage/api/1.0/tdg-sevenspheremedia4433-adv1-sc/campaigns/43936851/targeting/custom_contextual_segments"
+    },
+    "audiences_targeting": {
+      "state": "ALL",
+      "value": null,
+      "href": "https://backstage.taboola.com/backstage/api/1.0/tdg-sevenspheremedia4433-adv1-sc/campaigns/43936851/targeting/audiences"
+    },
+    "custom_audience_targeting": {
+      "state": "ALL",
+      "value": null,
+      "href": "https://backstage.taboola.com/backstage/api/1.0/tdg-sevenspheremedia4433-adv1-sc/campaigns/43936851/targeting/custom_audience"
+    },
+    "segments_targeting": {
+      "AGE": {
+        "type": "ALL",
+        "value": [],
+        "href": "https://backstage.taboola.com/backstage/api/1.0/tdg-sevenspheremedia4433-adv1-sc/campaigns/43936851/targeting/age_segments"
+      },
+      "GENDER": {
+        "type": "ALL",
+        "value": [],
+        "href": "https://backstage.taboola.com/backstage/api/1.0/tdg-sevenspheremedia4433-adv1-sc/campaigns/43936851/targeting/gender_segments"
+      }
+    },
+    "segments_multi_targeting": null,
+    "marking_label_multi_targeting": {
+      "state": "ALL",
+      "value": null,
+      "href": "https://backstage.taboola.com/backstage/api/1.0/tdg-sevenspheremedia4433-adv1-sc/campaigns/43936851/targeting/marking_labels"
+    },
+    "lookalike_audience_targeting": {
+      "state": "ALL",
+      "value": null,
+      "href": "https://backstage.taboola.com/backstage/api/1.0/tdg-sevenspheremedia4433-adv1-sc/campaigns/43936851/targeting/lookalike_audience"
+    },
+    "predefined_targeting_options": {
+      "predefined_supply_targeting": "ALL"
+    },
+    "marketing_objective": "LEADS_GENERATION",
+    "verification_pixel": null,
+    "viewability_tag": null,
+    "activity_schedule": {
+      "mode": "ALWAYS",
+      "rules": [],
+      "time_zone": "Asia/Dubai"
+    },
+    "policy_review": {
+      "reject_reason": "THUMBNAIL_SEXUAL_OR_SUGGESTIVE",
+      "reject_reason_description": "Thumbnail uses sexual or suggestive language/imagery or implies that someone became overexposed. This includes language/imagery that suggests something sexual happened.",
+      "reviewer_notes": null
+    },
+    "browser_targeting": {
+      "type": "ALL",
+      "value": [],
+      "href": null
+    },
+    "type": "PAID",
+    "external_metadata": null,
+    "is_spend_guard_active": "ACTIVE",
+    "frequency_capping_targeting": {
+      "threshold": null,
+      "frequency_capping_days": "NONE"
+    },
+    "campaign_item_type": "HAS_REGULAR_ITEMS",
+    "performance_rule_ids": [
+      19792,
+      12849,
+      20087,
+      12474,
+      20091,
+      18892
+    ],
+    "budget_additional_parameters": {
+      "pace_ahead_factor": 1
+    }
+  }
+]

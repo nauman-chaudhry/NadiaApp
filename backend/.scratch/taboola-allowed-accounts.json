@@ -1,0 +1,420 @@
+[
+  {
+    "id": 1873946,
+    "name": "TDG - Seven Sphere Media_4433 - Yahoo Brightsync",
+    "account_id": "tdg-sevenspheremedia4433-yahoobrightsync",
+    "external_id": null,
+    "partner_types": [
+      "ADVERTISER"
+    ],
+    "type": "PARTNER",
+    "campaign_types": [
+      "PAID"
+    ],
+    "currency": "USD",
+    "time_zone_name": "Etc/GMT",
+    "default_platform": "TABOOLA_ADS",
+    "is_active": true,
+    "language": "ar",
+    "country": "AE",
+    "is_fla": false,
+    "account_metadata": null,
+    "external_metadata": null
+  },
+  {
+    "id": 1789053,
+    "name": "TDG - Seven Sphere Media_4433 - Yahoo Codefuel - SC",
+    "account_id": "tdg-sevenspheremedia4433-adv1-sc",
+    "external_id": null,
+    "partner_types": [
+      "ADVERTISER"
+    ],
+    "type": "PARTNER",
+    "campaign_types": [
+      "PAID"
+    ],
+    "currency": "USD",
+    "time_zone_name": "Etc/GMT",
+    "default_platform": "TABOOLA_ADS",
+    "is_active": true,
+    "language": "ar",
+    "country": "AE",
+    "is_fla": false,
+    "account_metadata": null,
+    "external_metadata": null
+  },
+  {
+    "id": 1789052,
+    "name": "Seven Sphere Media_4433 - Network",
+    "account_id": "sevenspheremedia4433-network",
+    "external_id": null,
+    "partner_types": [
+      "ADVERTISER"
+    ],
+    "type": "NETWORK",
+    "campaign_types": [
+      "PAID"
+    ],
+    "currency": "USD",
+    "time_zone_name": "Etc/GMT",
+    "default_platform": "TABOOLA_ADS",
+    "is_active": true,
+    "language": "ar",
+    "country": "AE",
+    "is_fla": false,
+    "account_metadata": null,
+    "external_metadata": null
+  },
+  {
+    "id": 1817532,
+    "name": "TDG - Seven Sphere Media_4433 - Yahoo Codefuel_2 - SC",
+    "account_id": "tdg-sevenspheremedia4433-yahoocodefuel2-sc",
+    "external_id": null,
+    "partner_types": [
+      "ADVERTISER"
+    ],
+    "type": "PARTNER",
+    "campaign_types": [
+      "PAID"
+    ],
+    "currency": "USD",
+    "time_zone_name": "Etc/GMT",
+    "default_platform": "TABOOLA_ADS",
+    "is_active": true,
+    "language": "ar",
+    "country": "AE",
+    "is_fla": false,
+    "account_metadata": null,
+    "external_metadata": null
+  },
+  {
+    "id": 2037749,
+    "name": "TDG - Seven Sphere Media_4433 - Lead Gen Affiliates 5 - SC",
+    "account_id": "tdg-sevenspheremedia4433-leadgenaffiliates-5-sc",
+    "external_id": null,
+    "partner_types": [
+      "ADVERTISER"
+    ],
+    "type": "PARTNER",
+    "campaign_types": [
+      "PAID"
+    ],
+    "currency": "USD",
+    "time_zone_name": "Etc/GMT",
+    "default_platform": "TABOOLA_ADS",
+    "is_active": true,
+    "language": "ar",
+    "country": "AE",
+    "is_fla": false,
+    "account_metadata": null,
+    "external_metadata": null
+  },
+  {
+    "id": 2037745,
+    "name": "TDG - Seven Sphere Media_4433 - Lead Gen Affiliates 4 - SC",
+    "account_id": "tdg-sevenspheremedia4433-leadgenaffiliates-4-sc",
+    "external_id": null,
+    "partner_types": [
+      "ADVERTISER"
+    ],
+    "type": "PARTNER",
+    "campaign_types": [
+      "PAID"
+    ],
+    "currency": "USD",
+    "time_zone_name": "Etc/GMT",
+    "default_platform": "TABOOLA_ADS",
+    "is_active": true,
+    "language": "ar",
+    "country": "AE",
+    "is_fla": false,
+    "account_metadata": null,
+    "external_metadata": null
+  },
+  {
+    "id": 2014065,
+    "name": "TDG - Seven Sphere Media_4433 - Yahoo - SSM5",
+    "account_id": "tdg-sevenspheremedia4433-yahoo-ssm5",
+    "external_id": null,
+    "partner_types": [
+      "ADVERTISER"
+    ],
+    "type": "PARTNER",
+    "campaign_types": [
+      "PAID"
+    ],
+    "currency": "USD",
+    "time_zone_name": "UTC",
+    "default_platform": "TABOOLA_ADS",
+    "is_active": true,
+    "language": "ar",
+    "country": "AE",
+    "is_fla": false,
+    "account_metadata": null,
+    "external_metadata": null
+  },
+  {
+    "id": 2014062,
+    "name": "TDG - Seven Sphere Media_4433 - Yahoo - SSM4",
+    "account_id": "tdg-sevenspheremedia4433-yahoo-ssm4",
+    "external_id": null,
+    "partner_types": [
+      "ADVERTISER"
+    ],
+    "type": "PARTNER",
+    "campaign_types": [
+      "PAID"
+    ],
+    "currency": "USD",
+    "time_zone_name": "UTC",
+    "default_platform": "TABOOLA_ADS",
+    "is_active": true,
+    "language": "ar",
+    "country": "AE",
+    "is_fla": false,
+    "account_metadata": null,
+    "external_metadata": null
+  },
+  {
+    "id": 2037742,
+    "name": "TDG - Seven Sphere Media_4433 - Lead Gen Affiliates 3 - SC",
+    "account_id": "tdg-sevenspheremedia4433-leadgenaffiliates-3-sc",
+    "external_id": null,
+    "partner_types": [
+      "ADVERTISER"
+    ],
+    "type": "PARTNER",
+    "campaign_types": [
+      "PAID"
+    ],
+    "currency": "USD",
+    "time_zone_name": "Etc/GMT",
+    "default_platform": "TABOOLA_ADS",
+    "is_active": true,
+    "language": "ar",
+    "country": "AE",
+    "is_fla": false,
+    "account_metadata": null,
+    "external_metadata": null
+  },
+  {
+    "id": 2014061,
+    "name": "TDG - Seven Sphere Media_4433 - Yahoo - SSM3",
+    "account_id": "tdg-sevenspheremedia4433-yahoo-ssm3",
+    "external_id": null,
+    "partner_types": [
+      "ADVERTISER"
+    ],
+    "type": "PARTNER",
+    "campaign_types": [
+      "PAID"
+    ],
+    "currency": "USD",
+    "time_zone_name": "UTC",
+    "default_platform": "TABOOLA_ADS",
+    "is_active": true,
+    "language": "ar",
+    "country": "AE",
+    "is_fla": false,
+    "account_metadata": null,
+    "external_metadata": null
+  },
+  {
+    "id": 2037738,
+    "name": "TDG - Seven Sphere Media_4433 - Lead Gen Affiliates 2 - SC",
+    "account_id": "tdg-sevenspheremedia4433-leadgenaffiliates-2-sc",
+    "external_id": null,
+    "partner_types": [
+      "ADVERTISER"
+    ],
+    "type": "PARTNER",
+    "campaign_types": [
+      "PAID"
+    ],
+    "currency": "USD",
+    "time_zone_name": "Etc/GMT",
+    "default_platform": "TABOOLA_ADS",
+    "is_active": true,
+    "language": "ar",
+    "country": "AE",
+    "is_fla": false,
+    "account_metadata": null,
+    "external_metadata": null
+  },
+  {
+    "id": 2014059,
+    "name": "TDG - Seven Sphere Media_4433 - Yahoo - SSM2",
+    "account_id": "tdg-sevenspheremedia4433-yahoo-ssm2",
+    "external_id": null,
+    "partner_types": [
+      "ADVERTISER"
+    ],
+    "type": "PARTNER",
+    "campaign_types": [
+      "PAID"
+    ],
+    "currency": "USD",
+    "time_zone_name": "UTC",
+    "default_platform": "TABOOLA_ADS",
+    "is_active": true,
+    "language": "ar",
+    "country": "AE",
+    "is_fla": false,
+    "account_metadata": null,
+    "external_metadata": null
+  },
+  {
+    "id": 2014056,
+    "name": "TDG - Seven Sphere Media_4433 - Yahoo - SSM1",
+    "account_id": "tdg-sevenspheremedia4433-yahoo-ssm1",
+    "external_id": null,
+    "partner_types": [
+      "ADVERTISER"
+    ],
+    "type": "PARTNER",
+    "campaign_types": [
+      "PAID"
+    ],
+    "currency": "USD",
+    "time_zone_name": "UTC",
+    "default_platform": "TABOOLA_ADS",
+    "is_active": true,
+    "language": "ar",
+    "country": "AE",
+    "is_fla": false,
+    "account_metadata": null,
+    "external_metadata": null
+  },
+  {
+    "id": 1793261,
+    "name": "TDG - Seven Sphere Media_4433 - Yahoo Media.net - SC",
+    "account_id": "tdg-sevenspheremedia4433-yahoomedianet-sc",
+    "external_id": null,
+    "partner_types": [
+      "ADVERTISER"
+    ],
+    "type": "PARTNER",
+    "campaign_types": [
+      "PAID"
+    ],
+    "currency": "USD",
+    "time_zone_name": "UTC",
+    "default_platform": "TABOOLA_ADS",
+    "is_active": false,
+    "language": "ar",
+    "country": "AE",
+    "is_fla": false,
+    "account_metadata": null,
+    "external_metadata": null
+  },
+  {
+    "id": 1991401,
+    "name": "TDG - Seven Sphere Media_4433 - Yahoo - Codefuel - Whitelisted - SC",
+    "account_id": "tdg-sevenspheremedia4433-yahoo-codefuel-whitelisted-sc",
+    "external_id": null,
+    "partner_types": [
+      "ADVERTISER"
+    ],
+    "type": "PARTNER",
+    "campaign_types": [
+      "PAID"
+    ],
+    "currency": "USD",
+    "time_zone_name": "Etc/GMT",
+    "default_platform": "TABOOLA_ADS",
+    "is_active": true,
+    "language": "ar",
+    "country": "AE",
+    "is_fla": false,
+    "account_metadata": null,
+    "external_metadata": null
+  },
+  {
+    "id": 1823395,
+    "name": "TDG - Seven Sphere Media_4433 - Lead Gen Affiliates - SC",
+    "account_id": "tdg-sevenspheremedia4433-leadgenaffiliates-sc",
+    "external_id": null,
+    "partner_types": [
+      "ADVERTISER"
+    ],
+    "type": "PARTNER",
+    "campaign_types": [
+      "PAID"
+    ],
+    "currency": "USD",
+    "time_zone_name": "Etc/GMT",
+    "default_platform": "TABOOLA_ADS",
+    "is_active": true,
+    "language": "ar",
+    "country": "AE",
+    "is_fla": false,
+    "account_metadata": null,
+    "external_metadata": null
+  },
+  {
+    "id": 1823393,
+    "name": "TDG - Seven Sphere Media_4433 - Yahoo RSOC - SC",
+    "account_id": "tdg-sevenspheremedia4433-yahoorsoc-sc",
+    "external_id": null,
+    "partner_types": [
+      "ADVERTISER"
+    ],
+    "type": "PARTNER",
+    "campaign_types": [
+      "PAID"
+    ],
+    "currency": "USD",
+    "time_zone_name": "Etc/GMT",
+    "default_platform": "TABOOLA_ADS",
+    "is_active": true,
+    "language": "ar",
+    "country": "AE",
+    "is_fla": false,
+    "account_metadata": null,
+    "external_metadata": null
+  },
+  {
+    "id": 1833191,
+    "name": "TDG - Seven Sphere Media_4433 - Yahoo Mquest 2 - SC",
+    "account_id": "tdg-sevenspheremedia4433-yahoomquest2-sc",
+    "external_id": null,
+    "partner_types": [
+      "ADVERTISER"
+    ],
+    "type": "PARTNER",
+    "campaign_types": [
+      "PAID"
+    ],
+    "currency": "USD",
+    "time_zone_name": "UTC",
+    "default_platform": "TABOOLA_ADS",
+    "is_active": true,
+    "language": "ar",
+    "country": "AE",
+    "is_fla": false,
+    "account_metadata": null,
+    "external_metadata": null
+  },
+  {
+    "id": 1833189,
+    "name": "TDG - Seven Sphere Media_4433 - Yahoo Mquest 1 - SC",
+    "account_id": "tdg-sevenspheremedia4433-yahoomquest1-sc",
+    "external_id": null,
+    "partner_types": [
+      "ADVERTISER"
+    ],
+    "type": "PARTNER",
+    "campaign_types": [
+      "PAID"
+    ],
+    "currency": "USD",
+    "time_zone_name": "UTC",
+    "default_platform": "TABOOLA_ADS",
+    "is_active": true,
+    "language": "ar",
+    "country": "AE",
+    "is_fla": false,
+    "account_metadata": null,
+    "external_metadata": null
+  }
+]
