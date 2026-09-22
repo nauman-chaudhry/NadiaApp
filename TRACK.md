@@ -2134,3 +2134,36 @@ partners and how each attributes, stack, real repo layout (noting the root `db/`
 copy of 001–007), local-dev commands, the actual cron table, and status. Points to `CLAUDE.md` /
 `TRACK.md` for depth. Docs only.
 **Commit:** uncommitted — awaiting the user's go-ahead
+
+### 2026-09-22 — Performance analysis (client: "dashboard slow to load"); plan written, nothing changed
+**What:** Measured the live system end to end (API on Render, production DB, read-only) and wrote
+`docs/plans/performance-plan.md`. **No code, migration, config or data change.**
+**Measured (2026-09-22 08:50–09:05 UTC, 14-day window, all accounts):**
+- Render free instance **cold start 22.8 s** after ~15 min idle; 0.5 s once warm.
+- `/api/filters/options` **1.0 s warm → 2.1–6.1 s first hit**, 358 KB, runs on every page; its
+  `DISTINCT country/device` scans of 340k `partner_stats_hourly` rows are the 2nd/3rd most expensive
+  statements in `pg_stat_statements` history (4,563 + 1,728 + 2,835 calls).
+- `/api/sync-status` 0.7 s warm → 3.5 s cold: seq scans `ad_stats_hourly` (1.1 s) and
+  `partner_stats_hourly` ×3 — `MAX(fetched_at)` has no index.
+- `campaign` 1.3 s; `daily`/`hourly` 0.4–0.6 s (DB exec <10 ms); `device`/`country`/`site` 2.2–2.9 s;
+  `ads` **10.2 s** (637 KB); `ads` 90-day **120 s → 500**. pg_stat_statements: filtered Outbrain Ads
+  variants average 25–49 s, max 96 s.
+- `REFRESH MATERIALIZED VIEW joined_stats_hourly`: **6,789 calls, mean 15.2 s, max 55 s, 28.7 h of
+  DB time since 22 May**; non-CONCURRENT (ACCESS EXCLUSIVE lock) and scheduled in 5 hourly jobs.
+  EXPLAIN of the MV body: 17.4 s, **96 sort/hash spills** (`work_mem` 2 MB), worst CTE `ddc_cand`
+  5.3 s (no index on `outbrain_ad_daily.promoted_link_uuid`).
+- The `codefuel_orphan` per-row `LATERAL` (`gid`) costs ~2.1 s on device/country/site/ads-taboola
+  and inside the MV: 1,767 iterations, 810,950 `campaigns_pkey` lookups for 14 days.
+- Pool `idleTimeoutMillis` 30 s → TLS re-handshake to the Tokyo pooler after any pause; Supabase
+  Micro (`shared_buffers` 224 MB) is smaller than the ~315 MB working set, so latency is erratic.
+- Sync chatter: `INSERT INTO ads` 6.3 M single-row calls, `campaigns` 3.8 M, `outbrain_campaigns`
+  292k — the `:25` Outbrain job runs ~7 min.
+**Plan (in the doc):** Phase 0 infra (paid Render instance, warm pool, regions) → Phase 1 indexes +
+hashed `gd_owner` CTE + cached options/sync-status + `SET LOCAL work_mem` (migration 048/049) →
+Phase 3 frontend (revalidate, lazy campaign list, Suspense streaming, smaller Ads payload) →
+Phase 2 non-blocking swap-table refresh, single debounced refresh, last-7-days incremental rebuild,
+batched sync writes → Phase 4 daily rollups / partitioning for growth. Estimated: morning open
+~30 s → ~2 s; tab switch 2–6 s → ~1 s; Ads 14d 10 s → ~3 s; 90-day Ads from failing to working.
+**Not verified:** real browser timings (dashboard is auth-gated), Vercel function region, the
+worker's Render plan.
+**Commit:** see below — plan + this entry only.

@@ -340,6 +340,9 @@ too, with the reason.
   feeds, device split, `tt` normalisation + trailing-window click-weighted attribution (046),
   hourly cron, daily client CSV report. Live figures tie to DDC's own `report_type=date` API to the
   cent on every day checked.
+- **Performance plan (2026-09-22):** `docs/plans/performance-plan.md` — measured causes of slow page
+  loads (Render cold starts, non-concurrent MV refresh 5×/hour, a per-row orphan lateral, unindexed
+  `sync-status`/options scans) and a phased fix. Nothing built yet.
 - **Next planned work: a second dashboard ("Joe")** — `docs/plans/joe-dashboard.md` (2026-09-17).
   Same repo deployed twice with a **separate Supabase DB**; needs `TENANT_ACCOUNT_INCLUDE/EXCLUDE`
   and `ENABLED_SOURCES` env filters at ingestion. Nothing built; blocked on Joe's Taboola account
