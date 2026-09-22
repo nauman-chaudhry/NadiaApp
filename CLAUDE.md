@@ -9,8 +9,13 @@ stale** (see [Stale docs](#stale-docs)) — trust this file over them.
 ## 1. Hard rules
 
 1. **NEVER deploy. The user deploys.** Stated verbatim by the user: *"DONT DEPLOY ILL DEPLOY
-   MYSELF"*. Commit locally, then tell them what to deploy where. There is **no git remote** —
-   `master` is local-only, so nothing leaves the machine unless they push it.
+   MYSELF"*. Tell them what to deploy where (API / worker / frontend, and whether a migration rides
+   with it).
+   **Git workflow (updated 2026-09-22):** the repo is on branch `main` with a GitHub remote
+   (`origin` → `nauman-chaudhry/NadiaApp`). After any change, **commit everything** (code, migrations,
+   `TRACK.md`, docs) with a clear message. **You will push to `origin`, but ALWAYS ask the user
+   first** — show the commits about to go out, one line each, and wait for an explicit OK in that
+   turn. Never push unprompted, including docs-only changes.
 2. **The database is live production.** `DATABASE_URL` points at the real Supabase instance. Any
    migration you apply, or any `UPDATE`/backfill you run, is immediately live for Nadia. There is
    no staging DB. Read before you write; prefer idempotent SQL.
@@ -45,10 +50,13 @@ every bug in this codebase.
 | Piece | Tech | Deployed to |
 |---|---|---|
 | Database | Supabase PostgreSQL 17.6 | Supabase (live) |
-| Backend API | Node + TypeScript, Express, `pg` | Render web service `nadia-api` |
+| Backend API | Node + TypeScript, Express, `pg` | Render web service — **`https://nadiaapp.onrender.com`** (since 2026-09-22; older TRACK entries reference `nadia-api.onrender.com`) |
 | Sync worker | Node + TypeScript, `node-cron` | Render worker `nadia-worker` |
-| Frontend | Next.js App Router, TanStack Table, Tailwind | Vercel |
-| Auth | Supabase Auth | — |
+| Frontend | Next.js App Router, TanStack Table, Tailwind | Vercel (`nadia-dashboard-two.vercel.app`) |
+| Auth | Supabase Auth (magic link; `frontend/middleware.ts`) | — |
+
+The API has **no auth of its own** — only CORS, which is browser-only. Anyone with the URL can
+`curl` every endpoint.
 
 Both Render services build from `rootDir: backend` (see `render.yaml`). **The API service runs
 migrations on build** (`npm run migrate:prod`); the worker does not. `ENABLE_CRON` is `false` on
@@ -62,13 +70,15 @@ cd backend && npm run dev:worker   # cron worker
 cd frontend && npm run dev         # dashboard on :3000
 ```
 
-Two environment gotchas that will waste your time:
+Environment notes:
 
-- **The agent sandbox blocks reading `backend/.env`.** A script that does
-  `fs.readFileSync('.env')` dies silently with no output and exit 1 — even with the sandbox
-  disabled. To query the DB ad hoc, run through the app's own config path or ask the user to run it.
+- `npm run` / `tsx` work on this Mac (`backend/node_modules` is installed). Ad-hoc DB queries go
+  through `npm run sync:once -- <job>` or a short `tsx` script that imports `db/client.ts`; the
+  earlier note that the sandbox blocked reading `backend/.env` is stale (TRACK 2026-09-10).
 - **The API server does not hot-reload reliably after `server.ts` edits.** Kill and relaunch:
   find the PID on `:4000` and restart `dev:api`.
+- One `npm run sync:once` has been seen to write **two** overlapping `sync_runs` rows for the same
+  job (tsx double-execution). Idempotent, harmless, but don't read it as a cron bug.
 
 ---
 
@@ -177,9 +187,10 @@ UPDATE ad_accounts SET client_partner_id = (SELECT id FROM client_partners WHERE
 
 ## 7. The materialized view — `joined_stats_hourly`
 
-The dashboard reads this, not the base tables. **`backend/db/046_mv_ddc_tt_normalize_window.sql`
-is the authoritative definition** (written 2026-09-08; supersedes `043`, which superseded `041`
-and `037` — check `_migrations` for what is actually applied).
+The dashboard reads this, not the base tables. **`backend/db/047_mv_ia_orphan_deterministic_account.sql`
+is the authoritative definition** (applied 2026-09-09; a copy of `046` with one change — `ORDER BY id`
+on the `ia_orphan` lateral. `046` superseded `043` → `041` → `037`. Check `_migrations` for what is
+actually applied).
 
 **To change the MV, copy the whole of the latest MV migration into a new numbered migration and
 edit that.** Every MV migration re-declares the view in full; there is no incremental path.
@@ -244,11 +255,17 @@ Outbrain is **daily-grain** in the MV (`outbrain_stats_daily`), so Outbrain reve
 | When | Job |
 |---|---|
 | `:05` | Taboola hourly (2h window) + MV refresh |
-| `:15` | Codefuel hourly (2h window) + MV refresh |
+| `:15` | Codefuel hourly — yesterday **and** today, isolated (Codefuel publishes ~3–6h late) + MV refresh |
 | `:20` | IA hourly — yesterday **and** today, isolated + MV refresh |
-| `:25` | Outbrain marketer hourly (EDT day boundaries) |
+| `:25` | Outbrain, 2-day EDT window: marketer-hourly → per-campaign cost → per-promoted-link cost → MV refresh (~7 min, 42 calls) |
+| `:45` | DDC — daily `detail` (D-3..D-0, gated by the `date` report) **and** the hourly feed + MV refresh |
+| 10:00 `Europe/London` | DDC hourly-by-Type-Tag CSV emailed to the client via Resend (`REPORT_EMAIL_TO`), recorded as `sync_runs` source `ddc` / job `report` |
 | every 2h | Taboola metadata (new accounts/campaigns/ads) |
-| `03:00` | `runDailyBackfill()` — 4-day window, all sources |
+| `03:00` | `runDailyBackfill()` — 4-day window, all sources (the only job running `syncOutbrainPromotedLinks`, IA x-metrics, geo-cost, Outbrain country/publisher) |
+
+There is **no automatic stale-source alerting** — a watchdog was built and then removed at the
+user's instruction (TRACK 2026-09-18). To check health:
+`SELECT source, MAX(started_at) FILTER (WHERE status='ok') FROM sync_runs GROUP BY 1`.
 
 Two helpers matter: `attempt(name, fn)` in `cron.ts` logs and swallows so one failure can't kill a
 tick; `withSyncRun(...)` and `step(...)` in `daily-backfill.ts` record every step to `sync_runs` and
@@ -312,25 +329,37 @@ too, with the reason.
 
 ## 12. Current state
 
-- **69 commits on `master`, no remote.** Latest: `230618e` (migration 039, duplicate-row fix).
-- **Latest applied migration: `045`** (check `_migrations`). **Migration `046` is written but NOT
-  applied** — it fixes DDC revenue misattribution (see TRACK.md 2026-09-08) and must be applied
-  together with an API deploy. Authoritative MV definition: `046`.
-- **Milestones 1 and 2 complete** — Taboola + Outbrain cost, Codefuel + IA revenue, 7 tabs,
-  filters, reconciliation. See `TRACK.md`.
-- **Milestone 3 in progress: adding DDC as a third revenue partner.** Plan approved and saved at
-  `C:\Users\DELL\.claude\plans\fancy-squishing-charm.md`; implementation is **paused pending
-  Nadia's answers** to four questions (historical backfill route, whether `revenue` is net,
-  whether TQ is wanted, account scope).
-- **Deploy state:** commits `cf88eb8`, `6f8bec9`, `230618e` were still awaiting deploy at last
-  check — confirm with the user. `6f8bec9` matters most: without it the live worker captures only
-  10 of each day's 24 Outbrain hours.
-- **Known upstream issue:** Taboola's API returned zero rows for 2026-07-07 onward. Verified as
-  upstream (auth fine, 19 accounts reachable, their own daily report also empty) — not a pipeline
-  bug. Needs Nadia to confirm whether campaigns were paused.
-- **Outstanding asks for Nadia's team:** fix the broken IA tracking template on `ssm.flux.pro.fb`
-  (emitting a literal unsubstituted macro) and the ~38 campaigns whose IA templates send
-  `campaign_id` where `ad_id` is expected.
+*(Rewritten 2026-09-22. Trust `git log`, `_migrations`, and the tail of `TRACK.md` over this list.)*
+
+- **Git:** branch `main`, remote `origin` (GitHub). History was re-initialised on 2026-09-21
+  (`36e7de1 m1.0`), so older TRACK.md commit hashes no longer resolve. Commit everything; push only
+  after the user's explicit OK (§1).
+- **Latest applied migration: `047`** (2026-09-09). Authoritative MV = `047`. No migration is
+  pending.
+- **Milestones 1–3 complete and live.** DDC (Milestone 3) is fully integrated: daily + hourly
+  feeds, device split, `tt` normalisation + trailing-window click-weighted attribution (046),
+  hourly cron, daily client CSV report. Live figures tie to DDC's own `report_type=date` API to the
+  cent on every day checked.
+- **Next planned work: a second dashboard ("Joe")** — `docs/plans/joe-dashboard.md` (2026-09-17).
+  Same repo deployed twice with a **separate Supabase DB**; needs `TENANT_ACCOUNT_INCLUDE/EXCLUDE`
+  and `ENABLED_SOURCES` env filters at ingestion. Nothing built; blocked on Joe's Taboola account
+  naming and IA affiliate names. Not yet in TRACK.md.
+- **Known open issues (not bugs to fix in passing — check TRACK first):**
+  - Taboola cost has been effectively dead upstream since ~2026-08-19 (verified upstream, not
+    pipeline). Taboola-side Campaign-vs-Ads spend gap ~$52 on a $194 base, and a $0.23 revenue
+    delta under `gd=AP1009377` — logged 2026-09-18, unchased.
+  - 17 `(gd, r)` pairs genuinely shared by two Outbrain accounts are single-owned by the scoring
+    rule in `syncOutbrainPromotedLinks`; a proper split needs click-share allocation in the MV
+    (user's decision).
+  - `view=ads` returns 500 for windows longer than ~2 months; `/api/filters/options` is ~341 KB.
+  - Latent: the API's `-8` arm is Outbrain-only while the MV's `ddc_orphan` also routes
+    Taboola/NULL-platform DDC rows to the DDC account — breaks Campaign == Ads only if
+    `tb.startgonow.com` ever earns (2 rows, $0 today).
+  - `actual_cpm` is computed by the API but rendered nowhere.
+  - SBH_ssm_08 and SBH_ssm_10 remain untagged (partner never confirmed).
+- **Outstanding asks for Nadia's team:** the broken IA tracking template on `ssm.flux.pro.fb`
+  (literal unsubstituted macro) and the ~38 campaigns whose IA templates send `campaign_id` where
+  `ad_id` is expected.
 
 ## Stale docs
 

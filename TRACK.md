@@ -2108,3 +2108,29 @@ the 11:25 tick succeeded on all three jobs.
 **Open, not chased:** the Taboola Campaign-vs-Ads spend gap ($51.98/$194.44) and the $0.23 revenue
 delta under `gd=AP1009377`. Neither relates to the Outbrain outage.
 **Commit:** not committed
+
+### 2026-09-22 — CLAUDE.md brought up to date; git workflow changed to commit + push (ask first)
+**What:** Rewrote the stale parts of `CLAUDE.md` — §1 (git workflow), §3 (API URL, env notes),
+§7 (authoritative MV is `047`), §9 (actual cron table incl. DDC `:45`, the 10:00 London client
+report, the three-pull Outbrain `:25` job, and the note that stale-source alerting was removed),
+§12 (current state, open issues, next work). No code, migration or data changes.
+**Why:** §12 still described a 69-commit local-only `master`, an unapplied `046`, and Milestone 3
+as "paused". Reality: the repo was re-initialised on 2026-09-21 on `main` with a GitHub remote
+(`origin`), `047` is applied, Milestone 3 is complete and live, and the next planned work is the
+second ("Joe") dashboard in `docs/plans/joe-dashboard.md`.
+**Operator instructions recorded:**
+- Backend API is now served at **`https://nadiaapp.onrender.com`** (older entries in this file
+  reference `nadia-api.onrender.com`).
+- After any change, **commit everything** and **push to `origin` — but always ask the user first**,
+  showing the commits that will go out. Deploys remain the user's job.
+**Verified:** documentation only; `git remote -v` shows `origin` → `nauman-chaudhry/NadiaApp`,
+`git log` shows `main` at `68bd683` with a clean tree before this change.
+**Commit:** uncommitted — awaiting the user's go-ahead (this session was context-loading only).
+
+### 2026-09-22 — README.md rewritten
+**What:** Replaced the original phase-1 planning README (Facebook/Google/Media.net/Brightsync as
+scope, "days 1–7" build phases, shadcn/Recharts) with a current overview: live URLs, the three
+partners and how each attributes, stack, real repo layout (noting the root `db/` folder is a legacy
+copy of 001–007), local-dev commands, the actual cron table, and status. Points to `CLAUDE.md` /
+`TRACK.md` for depth. Docs only.
+**Commit:** uncommitted — awaiting the user's go-ahead
