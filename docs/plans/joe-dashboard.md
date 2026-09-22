@@ -70,7 +70,10 @@ rather than code changes per deployment.
 
 ## 3. Open items — cannot be finalised yet
 
-1. **Taboola account naming for Joe.** `SBH_rev_` is an **Outbrain marketer** convention. Taboola
+1. **Taboola account naming for Joe.** *(Answered 2026-09-22: his accounts are `TDG - Revlogic
+   Media_4945 - Adv N - SC` under a separate network `revlogicmedia4945-network` (2106794). Joe's
+   worker needs that as `TABOOLA_ACCOUNT_ID`; Nadia's exclude rule is `^SBH_rev_|Revlogic Media`.
+   All 11 accounts are already auto-registered, empty, in Nadia's DB.)* `SBH_rev_` is an **Outbrain marketer** convention. Taboola
    accounts are named `TDG - Seven Sphere Media_4433 - …` and contain no `SBH_` at all, so the
    prefix rule does not transfer. Need the naming (or explicit account ids) for Joe's Taboola side.
 2. **IA affiliate mapping.** IA revenue attaches via `campaign_ext_id` to campaigns, and affiliates

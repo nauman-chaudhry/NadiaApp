@@ -2167,3 +2167,19 @@ batched sync writes → Phase 4 daily rollups / partitioning for growth. Estimat
 **Not verified:** real browser timings (dashboard is auth-gated), Vercel function region, the
 worker's Render plan.
 **Commit:** see below — plan + this entry only.
+
+### 2026-09-22 — Joe's accounts: access confirmed; already auto-registered in Nadia's DB (empty)
+**What:** Nadia asked to confirm API access to Joe's 5 Outbrain and 5 Taboola accounts. Checked with
+the worker's own credentials (read-only `allowed-accounts` / `marketers` calls). **No changes.**
+**Confirmed:** Taboola shows a second network `Revlogic Media_4945 - Network` (2106794) with
+`TDG - Revlogic Media_4945 - Adv1..Adv4, Adv 5 - SC` (2106795/2106797/2106798/2106799/2108187) —
+IDs match her screenshot. Outbrain shows `SBH_rev_01..05`, all enabled. Hostinger not verifiable
+from here.
+**Found:** all 11 accounts are ALREADY rows in Nadia's `ad_accounts` (auto-registered by the metadata
+jobs, `client_partner_id` NULL, visible under "Untagged"). Zero campaigns / zero cost today, so no
+contamination yet — but it starts the moment Joe launches. The tenant filter in
+`docs/plans/joe-dashboard.md` §A1 must ship before that. Also: Taboola hourly cost is pulled per
+network via `TABOOLA_ACCOUNT_ID`, so Joe's deployment needs `revlogicmedia4945-network`.
+**Also found:** new marketer `SBH_ssm_15_Codefuel` (id 20307), registered, untagged, no campaigns —
+needs tagging like 044 once Nadia confirms it is Codefuel.
+**Commit:** docs only.
