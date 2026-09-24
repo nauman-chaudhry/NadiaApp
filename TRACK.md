@@ -2298,3 +2298,27 @@ DB has the table and no token (his worker logs in once on first boot). `tsc` cle
 `<PLACEHOLDER>`s for Joe's Render/Vercel URLs, both login emails and the Hostinger access.
 **Deploy:** ride with the tenancy commit — API (no-op migrate, 048 already applied) + worker.
 **Commit:** below.
+
+### 2026-09-24 — Critical review of Joe's dashboard; launch blockers identified, no fixes applied
+**What:** Reviewed the tenancy/token-cache build, frontend/auth/reporting flows, ingestion and
+onboarding, current MV, configuration, and project history. Report:
+`docs/reviews/2026-09-24-joe-dashboard-critical-review.md`.
+**Critical live finding:** both databases grant `anon` SELECT/UPDATE on `app_settings`, `app_users`,
+`ad_accounts` and `partner_stats_hourly` with RLS disabled; the MV grants anonymous SELECT too.
+Public-key REST GETs with no user session returned 200 for setting names/account IDs in both
+projects (Nadia returned existing rows; Joe is empty). Token VALUES were not requested; write
+privileges were inspected, never exercised. Migration 048's Outbrain token store is consequently
+exposed once populated. Existing Express reporting endpoints also have no auth.
+**Joe-specific gaps:** Flux fetches only nine hardcoded `ssm.*` affiliates, then Joe's exclude
+rule drops all of them; missing IA account tagging hides project/feed UI and causes the MV's
+inner-joined Taboola IA orphan path to drop unmatched revenue; missing rules allow all ingestion,
+and Joe's IA exclusion accepts unknown/blank affiliates; manual recovery jobs bypass source gates.
+**Further findings:** inherited misleading All Sources hourly aggregation, global freshness hiding
+partial outages, tab navigation dropping filters, and `ENABLE_CRON='false'` parsing as true.
+**Verified:** backend/frontend no-emit TypeScript checks passed. Mocked execution of actual IA
+client plus Joe tenant predicate requested nine Nadia affiliates and kept zero rows. Installed
+Zod coercion reproduced. READ ONLY SQL confirmed both DBs at 048; Joe has 0 accounts and 0
+partner rows, so real Joe financial reconciliation remains unverified. No live sync, migration,
+email, deployment or production write; no application changes. User requested analysis/reporting,
+so fixes were documented rather than applied.
+**Commit:** documentation-only review commit; not pushed.
