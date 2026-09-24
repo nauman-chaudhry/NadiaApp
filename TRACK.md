@@ -2208,3 +2208,25 @@ for the operator, then verify with `curl -I https://<domain>/ads.txt`. (2) Joe's
 access for Nadia and Joe — see `docs/plans/joe-dashboard.md`; the app has no roles, "admin" =
 a Supabase Auth user invited to Joe's project.
 **Commit:** below.
+
+### 2026-09-24 — Joe's dashboard: Supabase project provisioned and migrated (001–047)
+**What:** User created a second Supabase project for Joe (`glrxjjnaogkuahhafgth`, region
+**ap-south-1** / Mumbai). Applied all 48 migration files against it with
+`DATABASE_URL=<joe> npx tsx src/db/migrate.ts` (host verified as `aws-0-ap-south-1` before running —
+Nadia's is `ap-northeast-1`). Credentials live in the gitignored `backend/.env.joe`
+(`.gitignore` now excludes `.env.*` except `.env.example`, commit `7f2bf11`).
+**Verified on Joe's DB:** `_migrations` = 48, last `047`; 20 tables; `joined_stats_hourly` exists
+and is populated (0 rows); `platforms` 4, `client_partners` 6 (codefuel, image_advantage, media_net,
+brightsync, outbrain, ddc); `ad_accounts`/`campaigns`/`partner_stats_hourly`/`app_users`/`sync_runs`
+all 0; `on_auth_user_created` trigger present. Migrations 031/040/044/045 are UPDATEs and were no-ops
+on the empty tables, as intended.
+**Notes for the rest of the build:**
+- Frontend keys: Supabase issued a new-format `sb_publishable_…` key; the code reads it under
+  `NEXT_PUBLIC_SUPABASE_ANON_KEY` — set it in Vercel under that name.
+- Render services for Joe should go in **Singapore** (nearest Render region to ap-south-1).
+- `app_users.role` (`admin`/`viewer`, migration 003) exists but the app enforces nothing; "make
+  Nadia and Joe admins" = invite both in Supabase Auth, then `UPDATE app_users SET role='admin'`.
+- Still needed from Nadia: IA affiliate names for his 5 sites, launch date, IA-only confirmation,
+  optionally a second Outbrain API user, Joe's email. Message sent 2026-09-24.
+**Next:** tenant filter + `ENABLED_SOURCES` code (needs nothing from anyone), dry-run on Nadia's data.
+**Commit:** below (TRACK only — no code yet).
