@@ -76,3 +76,19 @@ services:
         sync: false
       - key: REPORT_EMAIL_TO
         sync: false
+      # Tenancy — see docs/plans/joe-dashboard.md and src/config/tenant.ts.
+      # The partner credentials are shared between clients and return EVERY
+      # account, so each worker must say which accounts are its own.
+      #   Nadia (this blueprint):  ENABLED_SOURCES = all five
+      #                            TENANT_ACCOUNT_EXCLUDE = ^SBH_rev_|Revlogic Media
+      #   Joe (separate services, created in the Render dashboard, own Supabase):
+      #                            ENABLED_SOURCES = taboola,outbrain,image_advantage
+      #                            TENANT_ACCOUNT_INCLUDE = ^SBH_rev_|Revlogic Media
+      #                            TABOOLA_ACCOUNT_ID = revlogicmedia4945-network
+      #                            TENANT_IA_AFFILIATE_INCLUDE = <his IA affiliates>
+      - key: ENABLED_SOURCES
+        value: taboola,outbrain,codefuel,image_advantage,ddc
+      - key: TENANT_ACCOUNT_EXCLUDE
+        sync: false
+      - key: TENANT_IA_AFFILIATE_EXCLUDE
+        sync: false

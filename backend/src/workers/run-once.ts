@@ -22,6 +22,11 @@
  *     ^ build and EMAIL the client's hourly-by-Type-Tag CSV for a date
  *       (date defaults to yesterday; recipient defaults to REPORT_EMAIL_TO)
  *   npm run sync:once -- refresh-view
+ *   npm run sync:once -- tenant-check
+ *     ^ READ-ONLY: which Taboola accounts / Outbrain marketers / IA affiliates this
+ *       deployment's TENANT_* rules keep or skip (set the env vars on the command line)
+ *   npm run sync:once -- tenant-prune [--apply]
+ *     ^ delete ad_accounts rows the rules exclude that hold NO data (dry-run by default)
  *   npm run sync:once -- backfill-full 2026-04-01
  *     ↑ does a full Apr-1-to-now backfill across all sources, handling the
  *       Codefuel 14-day hourly limit automatically.
@@ -49,7 +54,11 @@ import { syncDDC, syncDDCRange, syncDDCHourly } from '../sync/ddc.js';
 import { sendDdcHourlyReport } from '../reports/ddc-hourly-csv.js';
 import { syncOutbrainCampaigns, syncOutbrainCost, syncOutbrainPromotedLinks, syncOutbrainBreakdowns, syncOutbrainAds, syncOutbrainCountry, syncOutbrainPublisher, syncOutbrainMarketerHourly } from '../sync/outbrain.js';
 import { logger } from '../config/logger.js';
-import { pool } from '../db/client.js';
+import { pool, query } from '../db/client.js';
+import { accountAllowed, describeTenant, iaAffiliateAllowed, sourceEnabled } from '../config/tenant.js';
+import { listAllowedAccounts } from '../sources/taboola/client.js';
+import { listMarketers } from '../sources/outbrain/client.js';
+import { fetchIAHourly } from '../sources/imageadvantage/client.js';
 
 function isoDay(d: Date): string {
   return d.toISOString().slice(0, 10);
@@ -260,6 +269,56 @@ async function main() {
     case 'refresh-view':
       await refreshJoinedView();
       break;
+
+    // ── Tenancy ─────────────────────────────────────────────────────────────
+    case 'tenant-check': {
+      // READ-ONLY. Shows what THIS deployment's rules keep and skip, against the
+      // live partner APIs, so an env change can be checked before it is deployed.
+      //   TENANT_ACCOUNT_EXCLUDE='^SBH_rev_|Revlogic Media' npm run sync:once -- tenant-check
+      console.log(`rules: ${describeTenant()}`);
+      const tb = await listAllowedAccounts();
+      console.log('\nTaboola accounts:');
+      for (const a of tb) console.log(`  ${accountAllowed(a.name) ? 'KEEP' : 'skip'}  ${a.type.padEnd(8)} ${a.name}`);
+      const ob = await listMarketers();
+      console.log('\nOutbrain marketers:');
+      for (const m of ob) console.log(`  ${accountAllowed(m.name) ? 'KEEP' : 'skip'}  ${m.name}`);
+      if (sourceEnabled('image_advantage')) {
+        const rows = await fetchIAHourly(isoDay(addDays(new Date(), -1)));
+        const affiliates = [...new Set(rows.map(r => r.affiliate))].sort();
+        console.log(`\nImage Advantage affiliates seen yesterday (${affiliates.length}):`);
+        for (const a of affiliates) console.log(`  ${iaAffiliateAllowed(a) ? 'KEEP' : 'skip'}  ${a}`);
+      }
+      console.log(`\nSources: ${['taboola','outbrain','codefuel','image_advantage','ddc'].map(s => `${s}=${sourceEnabled(s as any) ? 'on' : 'off'}`).join('  ')}`);
+      break;
+    }
+    case 'tenant-prune': {
+      // Remove ad_accounts rows that the tenant rules now exclude AND that hold
+      // no data (no campaigns, no Outbrain campaigns, no cost rows). Anything
+      // with data is listed but left alone — that is a decision, not a cleanup.
+      // Dry-run by default; pass --apply to delete.
+      //   TENANT_ACCOUNT_EXCLUDE='…' npm run sync:once -- tenant-prune [--apply]
+      const apply = process.argv.includes('--apply');
+      const rows = await query<{ id: number; name: string; platform: string; campaigns: string; ob_campaigns: string; stats: string }>(
+        `SELECT a.id, a.name, p.code AS platform,
+                (SELECT COUNT(*) FROM campaigns c WHERE c.ad_account_id = a.id)                    AS campaigns,
+                (SELECT COUNT(*) FROM outbrain_campaigns oc WHERE oc.marketer_id = a.external_id) AS ob_campaigns,
+                (SELECT COUNT(*) FROM ad_stats_hourly s WHERE s.ad_account_id = a.id)             AS stats
+           FROM ad_accounts a JOIN platforms p ON p.id = a.platform_id
+          ORDER BY p.code, a.name`,
+      );
+      const excluded = rows.filter(r => !accountAllowed(r.name));
+      const empty = excluded.filter(r => r.campaigns === '0' && r.ob_campaigns === '0' && r.stats === '0');
+      const withData = excluded.filter(r => !empty.includes(r));
+      console.log(`rules: ${describeTenant()}`);
+      console.log(`\n${excluded.length} account(s) excluded by the rules; ${empty.length} empty (deletable), ${withData.length} with data (left alone):`);
+      for (const r of empty) console.log(`  delete  ${r.platform.padEnd(8)} ${r.name}`);
+      for (const r of withData) console.log(`  KEEP    ${r.platform.padEnd(8)} ${r.name}  (campaigns=${r.campaigns} ob_campaigns=${r.ob_campaigns} stats=${r.stats})`);
+      if (!apply) { console.log('\nDry run — nothing deleted. Re-run with --apply to delete the empty ones.'); break; }
+      if (empty.length === 0) { console.log('\nNothing to delete.'); break; }
+      const deleted = await query<{ id: number }>(`DELETE FROM ad_accounts WHERE id = ANY($1::int[]) RETURNING id`, [empty.map(r => r.id)]);
+      console.log(`\nDeleted ${deleted.length} empty excluded account(s).`);
+      break;
+    }
     case 'daily-backfill': {
       // Same code path as the 03:00 UTC cron job: metadata + all sources,
       // last 4 days, per-step isolation, recorded in sync_runs.

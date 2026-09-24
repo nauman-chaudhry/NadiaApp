@@ -8,8 +8,26 @@ import {
 } from '../sources/imageadvantage/client.js';
 import { withTx, query } from '../db/client.js';
 import { logger } from '../config/logger.js';
+import { iaAffiliateAllowed } from '../config/tenant.js';
 
 const IA_PARTNER_CODE = 'image_advantage';
+
+/**
+ * Keep only this deployment's affiliates. IA's y-metrics feed is fetched
+ * UNFILTERED (so new affiliates auto-appear), which means it carries every
+ * client's affiliates. Without this, another tenant's revenue would resolve to
+ * no campaign here and land in the "(Unattributed revenue — Image Advantage)"
+ * row — silently inflating this dashboard. Unset rules = keep everything.
+ */
+function tenantRows<T extends { affiliate: string }>(rows: T[], ctx: Record<string, unknown>): T[] {
+  const kept = rows.filter(r => iaAffiliateAllowed(r.affiliate));
+  if (kept.length !== rows.length) {
+    const skipped = [...new Set(rows.filter(r => !iaAffiliateAllowed(r.affiliate)).map(r => r.affiliate))];
+    logger.info({ ...ctx, kept: kept.length, dropped: rows.length - kept.length, skippedAffiliates: skipped },
+      'image_advantage: tenant filter applied to affiliates');
+  }
+  return kept;
+}
 
 type Granularity = 'hourly' | 'daily';
 
@@ -76,9 +94,10 @@ export async function syncImageAdvantage(opts: {
   const runId = await startRun('image_advantage', opts.granularity, opts.date, opts.date);
 
   try {
-    const rawRows = opts.granularity === 'hourly'
-      ? await fetchIAHourly(opts.date)
-      : await fetchIADaily(opts.date);
+    const rawRows = tenantRows(
+      opts.granularity === 'hourly' ? await fetchIAHourly(opts.date) : await fetchIADaily(opts.date),
+      { date: opts.date, granularity: opts.granularity },
+    );
 
     const rows = deduplicateCampaignVsItem(rawRows, opts.granularity);
     const droppedCount = rawRows.length - rows.length;
@@ -263,7 +282,11 @@ export async function syncXMetricsDaily(opts: {
   const runId = await startRun('image_advantage_x', 'x-daily', opts.date, opts.date);
 
   try {
-    const rawRows = await fetchIAXByUsertag(opts.date);
+    // x-metrics is fetched per affiliate from the hardcoded IA_TB_AFFILIATES
+    // list, so the tenant filter is applied to the rows the same way as
+    // y-metrics. (A new tenant's flux affiliates must also be added to that
+    // list — it is the one IA path that is not auto-discovered.)
+    const rawRows = tenantRows(await fetchIAXByUsertag(opts.date), { date: opts.date, granularity: 'x-daily' });
     // Reuse the same campaign-vs-item de-dup as y-metrics (drop campaign-level
     // aggregate rows when item-level data exists for the same campaign).
     const xRows = deduplicateXCampaignVsItem(rawRows, opts.date);

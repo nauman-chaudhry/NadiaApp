@@ -10,6 +10,26 @@ import {
 } from '../sources/outbrain/client.js';
 import { withTx, query } from '../db/client.js';
 import { logger } from '../config/logger.js';
+import { accountAllowed } from '../config/tenant.js';
+
+/**
+ * The marketers THIS deployment owns. Every Outbrain sync below iterates
+ * marketers from the API directly (not from the DB), so the tenant filter has
+ * to sit here, on the listing, or an excluded marketer's spend would still be
+ * written by the cost/breakdown jobs even though registration skipped it.
+ * Always use this instead of listMarketers() in this file.
+ */
+async function tenantMarketers() {
+  const all = await listMarketers();
+  const mine = all.filter(m => accountAllowed(m.name));
+  if (mine.length !== all.length) {
+    logger.info(
+      { kept: mine.map(m => m.name), skipped: all.filter(m => !accountAllowed(m.name)).map(m => m.name) },
+      'outbrain: tenant filter applied to marketers',
+    );
+  }
+  return mine;
+}
 
 async function startRun(source: string, jobType: string, start: string, end: string): Promise<number> {
   const rows = await query<{ id: number }>(
@@ -90,7 +110,7 @@ function eachDay(from: string, to: string): string[] {
 
 /** Pull all marketers + their campaigns into outbrain_campaigns. Run first. */
 export async function syncOutbrainCampaigns(): Promise<{ campaigns: number }> {
-  const marketers = await listMarketers();
+  const marketers = await tenantMarketers();
   let total = 0;
   // Register every marketer as an ad_accounts row so the MV can attach
   // ad_account_id to its cost rows and the account appears in the dashboard
@@ -317,7 +337,7 @@ export async function syncOutbrainCost(opts: {
 }): Promise<{ rowsWritten: number }> {
   const runId = await startRun('outbrain', 'cost', opts.from, opts.to);
   try {
-    const marketers = await listMarketers();
+    const marketers = await tenantMarketers();
     const days = eachDay(opts.from, opts.to);
     let written = 0;
     for (const mk of marketers) {
@@ -386,7 +406,7 @@ export async function syncOutbrainAds(opts: {
 }): Promise<{ rowsWritten: number }> {
   const runId = await startRun('outbrain', 'ads', opts.from, opts.to);
   try {
-    const marketers = await listMarketers();
+    const marketers = await tenantMarketers();
     const days = eachDay(opts.from, opts.to);
     let written = 0;
     for (const mk of marketers) {
@@ -457,7 +477,7 @@ export async function syncOutbrainCountry(opts: {
 }): Promise<{ rowsWritten: number }> {
   const runId = await startRun('outbrain', 'country', opts.from, opts.to);
   try {
-    const marketers = await listMarketers();
+    const marketers = await tenantMarketers();
     const days = eachDay(opts.from, opts.to);
     let written = 0;
     for (const mk of marketers) {
@@ -509,7 +529,7 @@ export async function syncOutbrainPublisher(opts: {
 }): Promise<{ rowsWritten: number }> {
   const runId = await startRun('outbrain', 'publisher', opts.from, opts.to);
   try {
-    const marketers = await listMarketers();
+    const marketers = await tenantMarketers();
     const days = eachDay(opts.from, opts.to);
     let written = 0;
     for (const mk of marketers) {
@@ -570,7 +590,7 @@ export async function syncOutbrainMarketerHourly(opts: {
 }): Promise<{ rowsWritten: number }> {
   const runId = await startRun('outbrain', 'marketer-hourly', opts.from, opts.to);
   try {
-    const marketers = await listMarketers();
+    const marketers = await tenantMarketers();
     const days = eachDay(opts.from, opts.to);
     let written = 0;
     for (const mk of marketers) {

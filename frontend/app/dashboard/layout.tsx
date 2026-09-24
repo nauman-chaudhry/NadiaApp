@@ -1,4 +1,5 @@
 import { fetchSyncStatus } from '@/lib/api';
+import { APP_NAME } from '@/lib/brand';
 import NavTabs from './NavTabs';
 import SignOutButton from './SignOutButton';
 
@@ -33,7 +34,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   return (
     <div className="min-h-screen flex flex-col">
       <header className="bg-teal-600 text-white px-6 py-3 flex items-center justify-between">
-        <span className="font-semibold text-base tracking-tight">Seven Sphere Media · Ad Performance</span>
+        <span className="font-semibold text-base tracking-tight">{APP_NAME} · Ad Performance</span>
         <div className="flex items-center gap-4">
           <span
             className={`text-xs ${STALE_COLORS[level]}`}

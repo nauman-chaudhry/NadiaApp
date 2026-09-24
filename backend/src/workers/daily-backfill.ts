@@ -19,6 +19,7 @@ import { syncDDCRange } from '../sync/ddc.js';
 import { syncOutbrainCampaigns, syncOutbrainPromotedLinks, syncOutbrainCost, syncOutbrainBreakdowns } from '../sync/outbrain.js';
 import { query } from '../db/client.js';
 import { logger } from '../config/logger.js';
+import { sourceEnabled, type Source } from '../config/tenant.js';
 
 function isoDay(d: Date): string {
   return d.toISOString().slice(0, 10);
@@ -91,8 +92,17 @@ export async function runDailyBackfill(): Promise<{ ok: string[]; failed: string
   const w = { startDate: isoDay(addDays(now, -4)), endDate: isoDay(now) };
   const ok: string[] = [];
   const failed: string[] = [];
+  const skipped: string[] = [];
 
-  const step = async (name: string, fn: () => Promise<unknown>) => {
+  // `source` gates the step on ENABLED_SOURCES (tenancy): a deployment that does
+  // not run Codefuel/DDC skips those steps instead of failing them every night.
+  // null = always runs (the MV refresh).
+  const step = async (name: string, source: Source | null, fn: () => Promise<unknown>) => {
+    if (source && !sourceEnabled(source)) {
+      skipped.push(name);
+      logger.info({ step: name, source }, 'daily-backfill: step skipped (source disabled for this deployment)');
+      return;
+    }
     try {
       await fn();
       ok.push(name);
@@ -106,27 +116,27 @@ export async function runDailyBackfill(): Promise<{ ok: string[]; failed: string
   await withSyncRun('cron', 'daily-backfill', w.startDate, w.endDate, async () => {
     // 1. Metadata first — new campaigns must exist in the DB before their
     //    stats arrive, or upsertStatRows silently drops the rows.
-    await step('taboola-metadata', () => syncTaboolaMetadata());
-    await step('outbrain-campaigns', () => syncOutbrainCampaigns());
-    await step('outbrain-promoted-links', () => syncOutbrainPromotedLinks());
+    await step('taboola-metadata', 'taboola', () => syncTaboolaMetadata());
+    await step('outbrain-campaigns', 'outbrain', () => syncOutbrainCampaigns());
+    await step('outbrain-promoted-links', 'outbrain', () => syncOutbrainPromotedLinks());
 
     // 2. Taboola hourly — 2-day sub-windows (API rejects ranges over 48h).
     for (let off = -4; off <= 0; off += 2) {
       const a = isoDay(addDays(now, off));
       const b = isoDay(addDays(now, Math.min(off + 1, 0)));
-      await step(`taboola-hourly ${a}..${b}`, () => syncTaboolaHourly({ startDate: a, endDate: b }));
+      await step(`taboola-hourly ${a}..${b}`, 'taboola', () => syncTaboolaHourly({ startDate: a, endDate: b }));
     }
 
-    await step('codefuel', () => syncCodefuel({ ...w, granularity: 'hourly' }));
+    await step('codefuel', 'codefuel', () => syncCodefuel({ ...w, granularity: 'hourly' }));
 
     // 3. IA y-metrics + x-metrics: single-day API, bars today — D-4..D-1.
     for (let off = -4; off <= -1; off++) {
       const d = isoDay(addDays(now, off));
-      await step(`ia-y ${d}`, () => syncImageAdvantage({ date: d, granularity: 'hourly' }));
+      await step(`ia-y ${d}`, 'image_advantage', () => syncImageAdvantage({ date: d, granularity: 'hourly' }));
     }
     for (let off = -4; off <= -1; off++) {
       const d = isoDay(addDays(now, off));
-      await step(`ia-x ${d}`, () => syncXMetricsDaily({ date: d }));
+      await step(`ia-x ${d}`, 'image_advantage', () => syncXMetricsDaily({ date: d }));
     }
 
     // 3b. DDC — daily grain, one API call per day (a DDC date range is SUMMED,
@@ -137,24 +147,24 @@ export async function runDailyBackfill(): Promise<{ ok: string[]; failed: string
     //     `{"error":"No stats for this date"}` until the UTC day closes. Asking
     //     for today would fail this step every single night, and a step that
     //     always fails is a step nobody reads when it fails for a real reason.
-    await step('ddc', () => syncDDCRange({
+    await step('ddc', 'ddc', () => syncDDCRange({
       from: w.startDate,
       to: isoDay(addDays(now, -1)),
     }));
 
     // 4. Device/Country/Site cost.
-    await step('taboola-geo-cost', () => syncTaboolaGeoCost(w));
+    await step('taboola-geo-cost', 'taboola', () => syncTaboolaGeoCost(w));
 
     // 5. Outbrain cost + breakdowns.
-    await step('outbrain-cost', () => syncOutbrainCost({ from: w.startDate, to: w.endDate }));
-    await step('outbrain-breakdowns', () => syncOutbrainBreakdowns({ from: w.startDate, to: w.endDate }));
+    await step('outbrain-cost', 'outbrain', () => syncOutbrainCost({ from: w.startDate, to: w.endDate }));
+    await step('outbrain-breakdowns', 'outbrain', () => syncOutbrainBreakdowns({ from: w.startDate, to: w.endDate }));
 
     // 6. MV refresh — always, so whatever DID sync reaches the dashboard.
-    await step('refresh-mv', () => refreshJoinedView());
+    await step('refresh-mv', null, () => refreshJoinedView());
 
     if (failed.length > 0) throw new Error(`steps failed: ${failed.join(', ')}`);
   });
 
-  logger.info({ okSteps: ok.length, failedSteps: failed }, 'daily-backfill: done');
+  logger.info({ okSteps: ok.length, failedSteps: failed, skippedSteps: skipped }, 'daily-backfill: done');
   return { ok, failed };
 }

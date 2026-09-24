@@ -364,6 +364,30 @@ too, with the reason.
   (literal unsubstituted macro) and the ~38 campaigns whose IA templates send `campaign_id` where
   `ad_id` is expected.
 
+## 13. Tenancy — one repo, one deployment per client
+
+Added 2026-09-24 for the second client ("Joe"). **Each client has its own Supabase DB, Render API +
+worker, and Vercel project, all built from this repo.** The partner credentials (Taboola, Outbrain,
+IA) are *shared* and their APIs return every account they can see, so each worker declares which
+accounts are its own — at **ingestion only**; the API, MV and frontend have no tenant concept.
+
+| env (worker) | Nadia | Joe |
+|---|---|---|
+| `ENABLED_SOURCES` | `taboola,outbrain,codefuel,image_advantage,ddc` | `taboola,outbrain,image_advantage` |
+| `TENANT_ACCOUNT_EXCLUDE` / `_INCLUDE` | exclude `^SBH_rev_\|Revlogic Media` | include `^SBH_rev_\|Revlogic Media` |
+| `TENANT_IA_AFFILIATE_INCLUDE` / `_EXCLUDE` | exclude Joe's affiliates | include Joe's affiliates |
+| `TABOOLA_ACCOUNT_ID` | `sevenspheremedia4433-network` | `revlogicmedia4945-network` |
+
+`src/config/tenant.ts` compiles the rules; they are applied in **every** `listMarketers()` consumer
+(`tenantMarketers()` in `sync/outbrain.ts` — the cost jobs list marketers from the API, not the DB,
+so discovery-only filtering is NOT enough), in `syncTaboolaMetadata` (sufficient for Taboola — all
+downstream jobs key off `ad_accounts`), and on IA rows by affiliate. Cron jobs and backfill steps are
+skipped per `ENABLED_SOURCES`; Codefuel/IA credentials are only required when their source is on.
+`npm run sync:once -- tenant-check` (read-only) shows what a rule set keeps/skips against the live
+APIs; `tenant-prune [--apply]` removes excluded accounts that hold no data. Frontend branding is
+`NEXT_PUBLIC_APP_NAME` / `_EXPORT_PREFIX` / `_DEFAULT_ACCOUNT` (`frontend/lib/brand.ts`).
+**Unset rules allow everything** — a deployment without them is the pre-tenancy behaviour.
+
 ## Stale docs
 
 - `docs/ARCHITECTURE.md` — good on the Codefuel join and OAuth; **wrong** on the cron table (says

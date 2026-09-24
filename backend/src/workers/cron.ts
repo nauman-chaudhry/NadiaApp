@@ -8,10 +8,30 @@ import { sendDdcHourlyReport } from '../reports/ddc-hourly-csv.js';
 import { runDailyBackfill, withSyncRun } from './daily-backfill.js';
 import { logger } from '../config/logger.js';
 import { env } from '../config/env.js';
+import { sourceEnabled, describeTenant, type Source } from '../config/tenant.js';
 
 if (!env.ENABLE_CRON) {
   logger.warn('ENABLE_CRON=false — worker exiting without scheduling jobs');
   process.exit(0);
+}
+
+logger.info({ tenant: describeTenant() }, 'cron: tenant rules for this deployment');
+
+// Schedule a job only when its source is enabled for this deployment
+// (ENABLED_SOURCES). Joe's worker runs taboola + outbrain + image_advantage;
+// Nadia's runs everything. A disabled source is logged once at boot so a
+// missing job is visible in the Render logs rather than a mystery.
+function scheduleFor(
+  source: Source,
+  expr: string,
+  fn: () => Promise<void>,
+  opts?: Parameters<typeof cron.schedule>[2],
+): void {
+  if (!sourceEnabled(source)) {
+    logger.info({ source, expr }, 'cron: source disabled for this deployment — job not scheduled');
+    return;
+  }
+  cron.schedule(expr, fn, opts);
 }
 
 function isoDay(d: Date): string {
@@ -46,7 +66,7 @@ let dailyBackfillRunning = false;
 let metadataRunning = false;
 
 // ---------- Taboola hourly: HH:05 ----------
-cron.schedule('5 * * * *', async () => {
+scheduleFor('taboola', '5 * * * *', async () => {
   const w = window2Hours();
   logger.info({ ...w }, 'cron: taboola hourly start');
   await attempt('taboola hourly', () => syncTaboolaHourly(w));
@@ -70,7 +90,7 @@ cron.schedule('5 * * * *', async () => {
 // as Codefuel "not being real time". Two calls/hour against a 60/hour limit, and
 // the upsert is idempotent, so re-asking for yesterday every hour simply
 // converges and also picks up any restatement Codefuel makes to a closed hour.
-cron.schedule('15 * * * *', async () => {
+scheduleFor('codefuel', '15 * * * *', async () => {
   const now = new Date();
   const yesterday = isoDay(addDaysUtc(now, -1));
   const today = isoDay(now);
@@ -85,7 +105,7 @@ cron.schedule('15 * * * *', async () => {
 
 // ---------- Image Advantage hourly: HH:20 ----------
 // IA API is single-day only — sync both yesterday and today to cover the 2h window.
-cron.schedule('20 * * * *', async () => {
+scheduleFor('image_advantage', '20 * * * *', async () => {
   const today = new Date();
   const yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000);
   logger.info({ dates: [isoDay(yesterday), isoDay(today)] }, 'cron: image_advantage hourly start');
@@ -100,7 +120,7 @@ cron.schedule('20 * * * *', async () => {
 // hours around midnight EDT are always covered. Three Outbrain pulls now share
 // that window -- marketer-hourly, per-campaign cost and per-promoted-link cost --
 // each one call per marketer per day. The tick runs ~7 minutes end to end.
-cron.schedule('25 * * * *', async () => {
+scheduleFor('outbrain', '25 * * * *', async () => {
   const nowEdt = new Date(Date.now() - 4 * 60 * 60 * 1000);
   const prevEdt = new Date(nowEdt.getTime() - 24 * 60 * 60 * 1000);
   const w = { from: isoDay(prevEdt), to: isoDay(nowEdt) };
@@ -149,7 +169,7 @@ cron.schedule('25 * * * *', async () => {
 // Window D-3..D-0 for the daily feed; the hourly feed exposes its own rolling
 // ~3 days including today. Hourly rows take precedence over daily ones for the
 // same day (ps CTE in the MV, ddcGrainDedup in api/server.ts).
-cron.schedule('45 * * * *', async () => {
+scheduleFor('ddc', '45 * * * *', async () => {
   const now = new Date();
   const w = { from: isoDay(addDaysUtc(now, -3)), to: isoDay(now) };
   logger.info({ ...w }, 'cron: ddc start');
@@ -170,7 +190,7 @@ cron.schedule('45 * * * *', async () => {
 //
 // A failed or skipped send is not lost: DDC's hourly feed keeps a rolling ~3
 // days, so the next day's run can still produce the missed date on request.
-cron.schedule('0 10 * * *', async () => {
+scheduleFor('ddc', '0 10 * * *', async () => {
   const date = isoDay(addDaysUtc(new Date(), -1));
   logger.info({ date }, 'cron: ddc daily report start');
   // Recorded in sync_runs like every other job. Without this the report left NO
@@ -184,7 +204,7 @@ cron.schedule('0 10 * * *', async () => {
 // Discovers new sub-accounts, campaigns, and ads from Taboola automatically,
 // so campaigns created between daily backfills are picked up within 2h.
 // Recorded in sync_runs (source='taboola', job_type='metadata') for visibility.
-cron.schedule('0 */2 * * *', async () => {
+scheduleFor('taboola', '0 */2 * * *', async () => {
   if (dailyBackfillRunning || metadataRunning) {
     logger.info('cron: taboola metadata skipped (backfill or previous metadata run still in progress)');
     return;

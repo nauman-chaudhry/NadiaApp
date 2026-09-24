@@ -6,6 +6,7 @@ import {
 import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { StatsRow, StatsView } from '@/lib/api';
 import { fmtInt, fmtMoney, fmtPct } from '@/lib/formatters';
+import { EXPORT_PREFIX } from '@/lib/brand';
 
 // ─── Client-side totals (mirrors server computeTotals) ──────────────────────
 // Used when client filters are active so the Total row reflects the filtered set.
@@ -488,7 +489,7 @@ async function exportXlsx(
   }));
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, view.slice(0, 31));
-  XLSX.writeFile(wb, `seven-sphere-${view}-${from}-${to}.xlsx`);
+  XLSX.writeFile(wb, `${EXPORT_PREFIX}-${view}-${from}-${to}.xlsx`);
 }
 
 // ─── Totals row ────────────────────────────────────────────────────────────────

@@ -2230,3 +2230,39 @@ on the empty tables, as intended.
   optionally a second Outbrain API user, Joe's email. Message sent 2026-09-24.
 **Next:** tenant filter + `ENABLED_SOURCES` code (needs nothing from anyone), dry-run on Nadia's data.
 **Commit:** below (TRACK only — no code yet).
+
+### 2026-09-24 — Tenancy built: per-deployment account/affiliate filters + ENABLED_SOURCES (not deployed)
+**What:** The mechanism from `docs/plans/joe-dashboard.md` §2/§A1, so one repo can be deployed once
+per client without the shared partner credentials leaking accounts across dashboards.
+**Files:** NEW `backend/src/config/tenant.ts`, `frontend/lib/brand.ts`. MODIFIED `config/env.ts`
+(new vars; Codefuel/IA creds optional but required-at-boot when their source is enabled),
+`sync/outbrain.ts` (`tenantMarketers()` replaces all 6 `listMarketers()` calls), `sync/taboola.ts`
+(account filter at discovery), `sync/imageadvantage.ts` (affiliate filter on y- and x-metrics rows),
+`sources/codefuel/client.ts` + `sources/imageadvantage/client.ts` (clear error if creds missing),
+`workers/cron.ts` (`scheduleFor(source, …)` — jobs for disabled sources are not scheduled, logged
+at boot), `workers/daily-backfill.ts` (per-step source gate, `skippedSteps` in the done log),
+`workers/run-once.ts` (`tenant-check`, `tenant-prune [--apply]`), `render.yaml`, both
+`.env.example`s, frontend branding (`NEXT_PUBLIC_APP_NAME` / `_EXPORT_PREFIX` / `_DEFAULT_ACCOUNT`),
+`CLAUDE.md` §13.
+**Design correction vs the plan:** discovery-only filtering is enough for Taboola (everything keys
+off `ad_accounts`) but NOT for Outbrain — `syncOutbrainCost/Ads/Country/Publisher/MarketerHourly`
+each list marketers from the API and would have written Joe's spend into Nadia's cost tables. The
+rule therefore sits on the marketer listing itself. IA needed its own affiliate rule: the unfiltered
+feed would otherwise put the other tenant's revenue in this tenant's "Unattributed — IA" row.
+**Verified (read-only against live APIs/DB, both backends `tsc` clean, frontend `tsc` clean):**
+- Boot guard: `codefuel` enabled with blank creds → exits 1 with a named message.
+- `tenant-check` with Nadia's rule (`EXCLUDE=^SBH_rev_|Revlogic Media`): keeps her 14 Taboola
+  accounts + 15 Outbrain marketers (incl. new `SBH_ssm_15_Codefuel`), skips exactly Joe's 11.
+- `tenant-check` as Joe's worker (`INCLUDE=…`, `ENABLED_SOURCES=taboola,outbrain,image_advantage`):
+  keeps exactly the 11; codefuel/ddc off. IA affiliates all still KEEP because no affiliate rule
+  exists yet — **Joe's worker must not run IA until `TENANT_IA_AFFILIATE_INCLUDE` is set** (or IA is
+  left out of his `ENABLED_SOURCES`), and Nadia's needs the matching EXCLUDE.
+- `tenant-prune` dry run on Nadia's DB: the 11 auto-registered Joe accounts are all empty and
+  deletable; nothing with data is touched. **Not applied** — must follow the worker deploy, or the
+  old code's 2-hourly metadata job re-registers them.
+**Unset rules = allow everything**, so Nadia's deployment is byte-for-byte the old behaviour until
+`TENANT_ACCOUNT_EXCLUDE` is set on her worker.
+**Deploy sequence:** (1) push; (2) Nadia's WORKER with `TENANT_ACCOUNT_EXCLUDE=^SBH_rev_|Revlogic
+Media` (API can redeploy too; no migration); (3) run `tenant-prune --apply` on Nadia's DB; (4) create
+Joe's Render API + worker (Singapore) and Vercel project with the env in `CLAUDE.md` §13 + `.env.joe`.
+**Commit:** below.

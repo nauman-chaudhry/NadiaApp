@@ -1,8 +1,15 @@
 # Second dashboard ("Joe") — plan
 
-**Status:** for review. Nothing built.
+**Status (2026-09-24):** tenant filter + `ENABLED_SOURCES` **built and verified** (see TRACK.md);
+Joe's Supabase project **migrated to 047**; Render/Vercel not yet created; waiting on Nadia for IA
+affiliate names, a second Outbrain user (optional) and Joe's email. Launch: as soon as it's ready.
 **Client answers (2026-09-17):** same Outbrain/IA credentials as Nadia's → filter required from the
-start. Image Advantage only, no other partners for now.
+start. Image Advantage only, no other partners for now *(re-confirmed 2026-09-24)*.
+
+**Correction to §2 below (found while building):** filtering at discovery is sufficient for
+Taboola but NOT for Outbrain — every Outbrain cost/breakdown job calls `listMarketers()` itself, so
+the rule is applied inside `tenantMarketers()` in `sync/outbrain.ts`, on every listing. IA rows are
+filtered by affiliate (`TENANT_IA_AFFILIATE_*`). Details: `CLAUDE.md` §13.
 
 ---
 

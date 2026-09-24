@@ -15,12 +15,15 @@ const schema = z.object({
   OUTBRAIN_PASSWORD: z.string().optional(),
   OUTBRAIN_API_BASE: z.string().url().default('https://api.outbrain.com/amplify/v0.1'),
 
-  CODEFUEL_CLIENT_ID: z.string().min(1),
-  CODEFUEL_CLIENT_SECRET: z.string().min(1),
+  // Codefuel / IA credentials are required only when their source is enabled
+  // (checked below, after parsing) — a tenant that runs IA only must not have
+  // to invent Codefuel credentials to boot.
+  CODEFUEL_CLIENT_ID: z.string().optional(),
+  CODEFUEL_CLIENT_SECRET: z.string().optional(),
   CODEFUEL_API_BASE: z.string().url().default('https://search-api.perion.com/api'),
 
-  IMAGE_ADVANTAGE_EMAIL: z.string().email(),
-  IMAGE_ADVANTAGE_PASSWORD: z.string().min(1),
+  IMAGE_ADVANTAGE_EMAIL: z.string().email().optional(),
+  IMAGE_ADVANTAGE_PASSWORD: z.string().optional(),
   IMAGE_ADVANTAGE_ACCOUNT_ID: z.coerce.number().default(398),
   IMAGE_ADVANTAGE_API_BASE: z.string().url().default('https://api.vpptechia.com/v1'),
 
@@ -48,6 +51,21 @@ const schema = z.object({
   CORS_ORIGIN: z.string().default('http://localhost:3000'),
 
   ENABLE_CRON: z.coerce.boolean().default(false),
+
+  // ── Tenancy: one repo, deployed once per client (Nadia, Joe), each with its
+  // own database. The partner APIs are shared credentials that return EVERY
+  // account, so each deployment must say which accounts are its own. See
+  // config/tenant.ts and docs/plans/joe-dashboard.md.
+  //   ENABLED_SOURCES         comma list of taboola,outbrain,codefuel,image_advantage,ddc
+  //   TENANT_ACCOUNT_INCLUDE  regex on the Taboola account / Outbrain marketer NAME;
+  //                           when set, only matching accounts are synced
+  //   TENANT_ACCOUNT_EXCLUDE  regex; matching accounts are skipped (applied after INCLUDE)
+  //   TENANT_IA_AFFILIATE_*   same pair for Image Advantage affiliate names
+  ENABLED_SOURCES: z.string().default('taboola,outbrain,codefuel,image_advantage,ddc'),
+  TENANT_ACCOUNT_INCLUDE: z.string().optional(),
+  TENANT_ACCOUNT_EXCLUDE: z.string().optional(),
+  TENANT_IA_AFFILIATE_INCLUDE: z.string().optional(),
+  TENANT_IA_AFFILIATE_EXCLUDE: z.string().optional(),
 });
 
 const parsed = schema.safeParse(process.env);
@@ -58,3 +76,18 @@ if (!parsed.success) {
 }
 
 export const env = parsed.data;
+
+// Per-source credentials are only mandatory for enabled sources. Fail at boot,
+// loudly, rather than at the first cron tick hours later.
+const enabledSources = new Set(env.ENABLED_SOURCES.split(',').map(s => s.trim()).filter(Boolean));
+const missing: string[] = [];
+if (enabledSources.has('codefuel') && !(env.CODEFUEL_CLIENT_ID && env.CODEFUEL_CLIENT_SECRET)) {
+  missing.push('CODEFUEL_CLIENT_ID / CODEFUEL_CLIENT_SECRET (codefuel is enabled)');
+}
+if (enabledSources.has('image_advantage') && !(env.IMAGE_ADVANTAGE_EMAIL && env.IMAGE_ADVANTAGE_PASSWORD)) {
+  missing.push('IMAGE_ADVANTAGE_EMAIL / IMAGE_ADVANTAGE_PASSWORD (image_advantage is enabled)');
+}
+if (missing.length) {
+  console.error('Invalid environment configuration: missing ' + missing.join('; '));
+  process.exit(1);
+}

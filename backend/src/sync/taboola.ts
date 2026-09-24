@@ -13,6 +13,7 @@ import {
 import { extractJoinParams } from '../utils/url-params.js';
 import { withTx, query } from '../db/client.js';
 import { logger } from '../config/logger.js';
+import { accountAllowed } from '../config/tenant.js';
 
 const TABOOLA_PLATFORM_CODE = 'taboola';
 
@@ -34,7 +35,18 @@ export async function syncTaboolaMetadata(): Promise<void> {
   const codefuelPartnerId = await getCodefuelPartnerId();
 
   // --- 1. Accounts ---
-  const accounts = await listAllowedAccounts();
+  // The credential sees every network it was invited to (Nadia's AND Joe's), so
+  // keep only this deployment's accounts. Everything downstream — campaigns,
+  // items, hourly stats, geo cost — keys off the ad_accounts/campaigns rows
+  // created here, so filtering the discovery list is sufficient for Taboola.
+  const allAccounts = await listAllowedAccounts();
+  const accounts = allAccounts.filter(a => accountAllowed(a.name));
+  if (accounts.length !== allAccounts.length) {
+    logger.info(
+      { kept: accounts.length, skipped: allAccounts.filter(a => !accountAllowed(a.name)).map(a => a.name) },
+      'taboola metadata: tenant filter applied to accounts',
+    );
+  }
   logger.info({ count: accounts.length }, 'taboola metadata: accounts');
 
   for (const acc of accounts) {

@@ -26,6 +26,11 @@ async function getAccessToken(): Promise<string> {
   if (cachedToken && cachedToken.expiresAt > Date.now() + 60_000) {
     return cachedToken.token;
   }
+  // Optional in env.ts since tenancy (a deployment may not run Codefuel at
+  // all); env.ts already refuses to boot if codefuel is ENABLED without them.
+  if (!env.CODEFUEL_CLIENT_ID || !env.CODEFUEL_CLIENT_SECRET) {
+    throw new Error('Codefuel credentials not set (CODEFUEL_CLIENT_ID / CODEFUEL_CLIENT_SECRET)');
+  }
   const res = await axios.post(
     AUTH_URL,
     {

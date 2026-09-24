@@ -4,9 +4,10 @@ import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from
 import type { FilterOptions } from '@/lib/api';
 import { format, subDays, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 
-// The sub-account Nadia uses as her baseline. Pre-selected on first load so the
-// dashboard matches her Taboola/Codefuel UI without needing manual filtering.
-const DEFAULT_ACCOUNT_NAME = 'TDG - Seven Sphere Media_4433 - Lead Gen Affiliates - SC';
+// The sub-account pre-selected on first load (per deployment; see lib/brand.ts).
+// For Nadia it is her baseline Taboola sub-account so the dashboard matches her
+// Taboola/Codefuel UI without manual filtering.
+import { DEFAULT_ACCOUNT_NAME } from '@/lib/brand';
 
 interface Props { options: FilterOptions }
 

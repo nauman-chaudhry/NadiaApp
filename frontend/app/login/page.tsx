@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import { APP_NAME } from '@/lib/brand';
 
 export default function LoginPage() {
   const [email, setEmail]     = useState('');
@@ -31,7 +32,7 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 w-full max-w-sm">
         <div className="mb-6 text-center">
-          <h1 className="text-lg font-semibold text-gray-900">Seven Sphere Media</h1>
+          <h1 className="text-lg font-semibold text-gray-900">{APP_NAME}</h1>
           <p className="text-sm text-gray-500 mt-1">Ad Performance Dashboard</p>
         </div>
 

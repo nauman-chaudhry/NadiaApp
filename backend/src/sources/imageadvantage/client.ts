@@ -45,6 +45,11 @@ let cachedToken: string | null = null;
 
 async function getToken(): Promise<string> {
   if (cachedToken) return cachedToken;
+  // Optional in env.ts since tenancy; env.ts refuses to boot if image_advantage
+  // is ENABLED without them, so this only fires on a misconfigured manual run.
+  if (!env.IMAGE_ADVANTAGE_EMAIL || !env.IMAGE_ADVANTAGE_PASSWORD) {
+    throw new Error('Image Advantage credentials not set (IMAGE_ADVANTAGE_EMAIL / IMAGE_ADVANTAGE_PASSWORD)');
+  }
   const params = new URLSearchParams({
     email: env.IMAGE_ADVANTAGE_EMAIL,
     password: env.IMAGE_ADVANTAGE_PASSWORD,
