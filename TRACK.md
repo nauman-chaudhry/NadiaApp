@@ -2266,3 +2266,15 @@ feed would otherwise put the other tenant's revenue in this tenant's "Unattribut
 Media` (API can redeploy too; no migration); (3) run `tenant-prune --apply` on Nadia's DB; (4) create
 Joe's Render API + worker (Singapore) and Vercel project with the env in `CLAUDE.md` §13 + `.env.joe`.
 **Commit:** below.
+
+### 2026-09-24 — IA tenant rule settled without affiliate names (`^ssm\.`)
+**What:** Nadia has not created Joe's IA affiliates yet, but all 16 IA affiliates ever seen in the
+feed are `ssm.<product>.<vertical>.<platform>` and she confirmed Joe's "will be similar build but
+different from ssm". So: Nadia's worker `TENANT_IA_AFFILIATE_INCLUDE=^ssm\.`, Joe's worker
+`TENANT_IA_AFFILIATE_EXCLUDE=^ssm\.`. No code change; docs/env templates updated. Joe's worker can
+therefore run `image_advantage` from the first deploy. Residual risk: a future Nadia affiliate not
+prefixed `ssm.` would route to Joe — flagged to her.
+**Nadia also confirmed:** Outbrain and Taboola will NOT issue a second API key. Shared credentials
+stay; the only consequence is the Outbrain `/login` 2-per-hour limit across two workers
+(proposal: DB-backed token cache, not yet approved).
+**Commit:** below.

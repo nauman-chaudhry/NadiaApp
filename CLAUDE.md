@@ -375,7 +375,7 @@ accounts are its own — at **ingestion only**; the API, MV and frontend have no
 |---|---|---|
 | `ENABLED_SOURCES` | `taboola,outbrain,codefuel,image_advantage,ddc` | `taboola,outbrain,image_advantage` |
 | `TENANT_ACCOUNT_EXCLUDE` / `_INCLUDE` | exclude `^SBH_rev_\|Revlogic Media` | include `^SBH_rev_\|Revlogic Media` |
-| `TENANT_IA_AFFILIATE_INCLUDE` / `_EXCLUDE` | exclude Joe's affiliates | include Joe's affiliates |
+| `TENANT_IA_AFFILIATE_INCLUDE` / `_EXCLUDE` | include `^ssm\.` | exclude `^ssm\.` |
 | `TABOOLA_ACCOUNT_ID` | `sevenspheremedia4433-network` | `revlogicmedia4945-network` |
 
 `src/config/tenant.ts` compiles the rules; they are applied in **every** `listMarketers()` consumer
@@ -383,6 +383,8 @@ accounts are its own — at **ingestion only**; the API, MV and frontend have no
 so discovery-only filtering is NOT enough), in `syncTaboolaMetadata` (sufficient for Taboola — all
 downstream jobs key off `ad_accounts`), and on IA rows by affiliate. Cron jobs and backfill steps are
 skipped per `ENABLED_SOURCES`; Codefuel/IA credentials are only required when their source is on.
+IA affiliates need no names: every affiliate Nadia has ever had is `ssm.<product>.<vertical>.<platform>` and she
+confirmed (2026-09-24) Joe's will use a different prefix, so Nadia includes `^ssm\.` and Joe excludes it.
 `npm run sync:once -- tenant-check` (read-only) shows what a rule set keeps/skips against the live
 APIs; `tenant-prune [--apply]` removes excluded accounts that hold no data. Frontend branding is
 `NEXT_PUBLIC_APP_NAME` / `_EXPORT_PREFIX` / `_DEFAULT_ACCOUNT` (`frontend/lib/brand.ts`).

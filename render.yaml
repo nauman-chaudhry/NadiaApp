@@ -85,10 +85,11 @@ services:
       #                            ENABLED_SOURCES = taboola,outbrain,image_advantage
       #                            TENANT_ACCOUNT_INCLUDE = ^SBH_rev_|Revlogic Media
       #                            TABOOLA_ACCOUNT_ID = revlogicmedia4945-network
-      #                            TENANT_IA_AFFILIATE_INCLUDE = <his IA affiliates>
+      #                            TENANT_IA_AFFILIATE_EXCLUDE = ^ssm\.
+      #   Nadia additionally:      TENANT_IA_AFFILIATE_INCLUDE = ^ssm\.
       - key: ENABLED_SOURCES
         value: taboola,outbrain,codefuel,image_advantage,ddc
       - key: TENANT_ACCOUNT_EXCLUDE
         sync: false
-      - key: TENANT_IA_AFFILIATE_EXCLUDE
+      - key: TENANT_IA_AFFILIATE_INCLUDE
         sync: false

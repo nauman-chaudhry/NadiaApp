@@ -83,7 +83,9 @@ rather than code changes per deployment.
    All 11 accounts are already auto-registered, empty, in Nadia's DB.)* `SBH_rev_` is an **Outbrain marketer** convention. Taboola
    accounts are named `TDG - Seven Sphere Media_4433 - …` and contain no `SBH_` at all, so the
    prefix rule does not transfer. Need the naming (or explicit account ids) for Joe's Taboola side.
-2. **IA affiliate mapping.** IA revenue attaches via `campaign_ext_id` to campaigns, and affiliates
+2. **IA affiliate mapping.** *(Resolved 2026-09-24 without names: all of Nadia's affiliates are
+   `ssm.*` and she confirmed Joe's will use a different prefix → Nadia `TENANT_IA_AFFILIATE_INCLUDE=^ssm\.`,
+   Joe `TENANT_IA_AFFILIATE_EXCLUDE=^ssm\.`.)* IA revenue attaches via `campaign_ext_id` to campaigns, and affiliates
    are not mapped to `ad_accounts`. If Joe's DB holds only Joe's campaigns, Nadia's IA revenue does
    not vanish — it lands in Joe's **unattributed** bucket. So IA needs its own affiliate-level
    filter, and the affiliate names are not known yet ("tags not ready").
