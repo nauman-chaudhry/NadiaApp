@@ -7,10 +7,34 @@ import {
   fetchAdBreakdown,
   fetchCountryBreakdown,
   fetchPublisherBreakdown,
+  setOutbrainTokenStore,
+  type CachedToken,
 } from '../sources/outbrain/client.js';
 import { withTx, query } from '../db/client.js';
 import { logger } from '../config/logger.js';
 import { accountAllowed } from '../config/tenant.js';
+
+// Durable Outbrain token cache in THIS deployment's database (app_settings,
+// migration 048), installed here because the HTTP client must stay DB-free.
+// Every entry point that touches Outbrain (cron, backfill, run-once) imports
+// this module, so the store is always wired before the first API call. If the
+// table is missing (worker deployed before the API ran the migration) the
+// client logs a warning and falls back to the file cache.
+setOutbrainTokenStore({
+  async load(): Promise<CachedToken | null> {
+    const rows = await query<{ value: CachedToken }>(
+      `SELECT value FROM app_settings WHERE key = 'outbrain_token'`,
+    );
+    return rows[0]?.value ?? null;
+  },
+  async save(t: CachedToken): Promise<void> {
+    await query(
+      `INSERT INTO app_settings (key, value, updated_at) VALUES ('outbrain_token', $1::jsonb, NOW())
+       ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()`,
+      [JSON.stringify(t)],
+    );
+  },
+});
 
 /**
  * The marketers THIS deployment owns. Every Outbrain sync below iterates

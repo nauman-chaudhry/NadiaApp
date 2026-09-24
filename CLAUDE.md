@@ -286,8 +286,12 @@ Manual runs: `npm run sync:once -- <job> [start] [end]` (see the docblock at the
   you get 10 of 24 hours and ~30% of the true total. Valid `breakdown` values: `daily, monthly,
   weekly, hourOfDay, dayOfWeek, dayOfWeekByHour, hourly, realtime` — for account-level hourly the
   working one is **`hourOfDay`**, not `hourly`.
-- **Outbrain `/login` is rate-limited to 2/hour.** The token is cached to
-  `.cache/outbrain-token.json`. Don't loop logins.
+- **Outbrain `/login` is rate-limited to 2/hour** and Outbrain will not issue a second credential,
+  so Nadia's and Joe's deployments share one. Since 2026-09-24 the ~30-day token is cached in each
+  deployment's **`app_settings` table** (migration 048; store wired in `sync/outbrain.ts`, lookup
+  memory → DB → `.cache/outbrain-token.json` → login), so redeploys no longer force a login. Don't
+  loop logins, and don't call the Outbrain client from a script that bypasses `sync/outbrain.ts`
+  unless you accept a possible login.
 - **Taboola hourly reports accept max 48h per request** and retain ~14 days — hence the 2-day
   sub-window loop in the backfill.
 - **IA's API is single-day** and rejects today for some endpoints; y-metrics endpoints are called

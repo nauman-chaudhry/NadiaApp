@@ -2278,3 +2278,23 @@ prefixed `ssm.` would route to Joe — flagged to her.
 stay; the only consequence is the Outbrain `/login` 2-per-hour limit across two workers
 (proposal: DB-backed token cache, not yet approved).
 **Commit:** below.
+
+### 2026-09-24 — Outbrain token moved to the database (migration 048); Joe deploy checklist
+**Why:** Outbrain will not issue a second API credential (Nadia, 2026-09-24), so Nadia's and Joe's
+workers share one. `/login` is limited to 2 calls/hour and the token lived only in
+`.cache/outbrain-token.json` on Render's ephemeral disk, so every deploy/restart forced a login —
+two redeploys in one hour would 429 the loser's Outbrain jobs (the 2026-09-18 incident was this
+with one worker + a manual backfill).
+**What:** `048_app_settings.sql` (key/value table). `sources/outbrain/client.ts` gets a pluggable
+`OutbrainTokenStore` (stays HTTP-only); `sync/outbrain.ts` installs the DB-backed store at import,
+so cron/backfill/run-once are all covered. Lookup: memory → DB → file → login; a token found only in
+the file is copied into the DB so an existing deployment migrates without logging in; a missing
+table (worker deployed before the API migrated) logs a warning and falls back to the file.
+**Applied:** 048 on Nadia's DB and on Joe's DB. **Verified:** first Outbrain call through the sync
+path logged `seeded token store from file cache` and `app_settings.outbrain_token` now holds the
+2026-09-18 token (508 chars); the second call read it from the DB with no seed and no login. Joe's
+DB has the table and no token (his worker logs in once on first boot). `tsc` clean.
+**Also:** `docs/plans/joe-deploy-checklist.md` — operator runbook with the final env lists and
+`<PLACEHOLDER>`s for Joe's Render/Vercel URLs, both login emails and the Hostinger access.
+**Deploy:** ride with the tenancy commit — API (no-op migrate, 048 already applied) + worker.
+**Commit:** below.

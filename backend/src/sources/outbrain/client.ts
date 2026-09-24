@@ -16,25 +16,76 @@ import { logger } from '../../config/logger.js';
 const TOKEN_FILE = path.resolve(process.cwd(), '.cache', 'outbrain-token.json');
 const TOKEN_MAX_AGE_MS = 25 * 24 * 60 * 60 * 1000; // refresh well before 30d expiry
 
-let mem: { token: string; savedAt: number } | null = null;
+export interface CachedToken { token: string; savedAt: number }
+
+/**
+ * Pluggable durable cache for the token. This file stays HTTP-only (repo
+ * convention), so it does not know about the database; `sync/outbrain.ts`
+ * installs a store backed by the `app_settings` table (migration 048).
+ *
+ * Why a durable store matters: /login is limited to 2 calls/hour per
+ * credential, Outbrain will not issue a second credential, and the on-disk
+ * cache below is wiped on every Render deploy. With two deployments (Nadia,
+ * Joe) on one credential, two redeploys in the same hour used to exhaust the
+ * limit. Lookup order: memory → store → file → login. A token found only in the
+ * file is copied into the store so an existing deployment migrates without a
+ * login.
+ */
+export interface OutbrainTokenStore {
+  load(): Promise<CachedToken | null>;
+  save(t: CachedToken): Promise<void>;
+}
+
+let store: OutbrainTokenStore | null = null;
+export function setOutbrainTokenStore(s: OutbrainTokenStore): void { store = s; }
+
+let mem: CachedToken | null = null;
+
+const fresh = (t: CachedToken | null | undefined): t is CachedToken =>
+  !!t && typeof t.token === 'string' && t.token.length > 0 && Date.now() - t.savedAt < TOKEN_MAX_AGE_MS;
+
+async function readFileToken(): Promise<CachedToken | null> {
+  try {
+    const parsed = JSON.parse(await fs.readFile(TOKEN_FILE, 'utf8')) as CachedToken;
+    return fresh(parsed) ? parsed : null;
+  } catch { return null; }
+}
 
 async function readCachedToken(): Promise<string | null> {
-  if (mem && Date.now() - mem.savedAt < TOKEN_MAX_AGE_MS) return mem.token;
-  try {
-    const raw = await fs.readFile(TOKEN_FILE, 'utf8');
-    const parsed = JSON.parse(raw) as { token: string; savedAt: number };
-    if (parsed.token && Date.now() - parsed.savedAt < TOKEN_MAX_AGE_MS) {
-      mem = parsed;
-      return parsed.token;
+  if (fresh(mem)) return mem!.token;
+  if (store) {
+    try {
+      const t = await store.load();
+      if (fresh(t)) { mem = t; return t.token; }
+    } catch (e: any) {
+      // e.g. app_settings not migrated yet on this DB — fall through to the file.
+      logger.warn({ err: e.message }, 'Outbrain: token store unavailable, using file cache');
     }
-  } catch { /* no cache yet */ }
+  }
+  const f = await readFileToken();
+  if (f) {
+    mem = f;
+    if (store) {
+      try { await store.save(f); logger.info('Outbrain: seeded token store from file cache'); }
+      catch (e: any) { logger.warn({ err: e.message }, 'Outbrain: could not seed token store'); }
+    }
+    return f.token;
+  }
   return null;
 }
 
 async function writeCachedToken(token: string): Promise<void> {
   mem = { token, savedAt: Date.now() };
-  await fs.mkdir(path.dirname(TOKEN_FILE), { recursive: true });
-  await fs.writeFile(TOKEN_FILE, JSON.stringify(mem), 'utf8');
+  if (store) {
+    try { await store.save(mem); }
+    catch (e: any) { logger.warn({ err: e.message }, 'Outbrain: could not persist token to store'); }
+  }
+  try {
+    await fs.mkdir(path.dirname(TOKEN_FILE), { recursive: true });
+    await fs.writeFile(TOKEN_FILE, JSON.stringify(mem), 'utf8');
+  } catch (e: any) {
+    logger.warn({ err: e.message }, 'Outbrain: could not write token file cache');
+  }
 }
 
 async function login(): Promise<string> {
