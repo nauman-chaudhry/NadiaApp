@@ -2183,3 +2183,28 @@ network via `TABOOLA_ACCOUNT_ID`, so Joe's deployment needs `revlogicmedia4945-n
 **Also found:** new marketer `SBH_ssm_15_Codefuel` (id 20307), registered, untagged, no campaigns —
 needs tagging like 044 once Nadia confirms it is Codefuel.
 **Commit:** docs only.
+
+### 2026-09-24 — DDC moved to a new domain (find247library.com, tmpl C253): verified, no code change needed
+**Client:** Nadia paused DDC traffic on `startgonow.com` after an issue and relaunched 2026-09-23 on
+`https://find247library.com/…/?amxt=blue&tmpl=C253&tt=…` on the same Outbrain account (SBH_ssm_09),
+"same trackings as before"; asked for the dashboard to be updated.
+**Checked (read-only, DDC API + our DB):**
+- DDC reports the new domain as **`ob.find247library.com`** — the `ob.` prefix `platformForDomain`
+  keys on, so it maps to Outbrain with no change. The only new-domain row so far (09-21, tag `null`,
+  $0.00) is her own test click (`kw=shoes&ob_click_id=abc`, the exact URL she pasted).
+- **27 new promoted links** on the new domain across **21 campaigns**, live from 09-23 ($30.29 spend,
+  242 clicks by 09-24 morning), **all 27 carrying `tt=<34-hex>_{{publisher_id}}`** — same shape.
+- The 03:00 backfill on 09-24 succeeded and `outbrain_ad_links` holds `tt_param` for **27/27**, so
+  the `split_part` match and click-weighted allocation (046) apply to the new links unchanged.
+- DDC has not published 09-22/09-23 yet (`report_type=date` shows 09-18..09-21 at $0.00 — the
+  pause). The `:45` job is healthy (daily ok / 6 rows; hourly ok / 0 rows — feed empty until they
+  publish). Revenue will appear on the same campaigns/ads automatically when it lands.
+**Change:** comment in `sync/ddc.ts` documenting the domain history and the prefix-based rule. No
+migration, no data change, no deploy needed.
+**Also in the same thread, not done here:** (1) ads.txt for Joe's 5 IA sites — files are in
+`~/Downloads/untitled folder` (one per domain, each a placeholder line + `subdomain=flux.<domain>`);
+all five domains currently return **404** for `/ads.txt`. Uploading is a Hostinger hPanel/FTP action
+for the operator, then verify with `curl -I https://<domain>/ads.txt`. (2) Joe's dashboard + admin
+access for Nadia and Joe — see `docs/plans/joe-dashboard.md`; the app has no roles, "admin" =
+a Supabase Auth user invited to Joe's project.
+**Commit:** below.

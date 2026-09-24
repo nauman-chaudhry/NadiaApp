@@ -4,9 +4,17 @@ import { logger } from '../config/logger.js';
 
 const DDC_PARTNER_CODE = 'ddc';
 
-// Domain -> platform. Nadia's setup: tmpl C244 -> ob.startgonow.com (Outbrain),
-// tmpl C245 -> tb.startgonow.com (Taboola). Only ob.* has traffic today; the tb
-// path is built so it works the moment she switches it on.
+// Domain -> platform, keyed on the subdomain PREFIX DDC reports in `Mode`, not on
+// the domain itself — so a domain change needs no code change. History:
+//   tmpl C244 -> ob.startgonow.com (Outbrain), tmpl C245 -> tb.startgonow.com
+//   (Taboola); 2026-09-23 the client moved Outbrain traffic to tmpl C253 ->
+//   ob.find247library.com after pausing the first domain. Verified 2026-09-24:
+//   DDC reports the new domain WITH the `ob.` prefix, the 27 new promoted links
+//   all carry `tt=<tag>_{{publisher_id}}`, and the 03:00 job had already stored
+//   their tt_param — so attribution continued unchanged.
+// Only ob.* has traffic today; the tb path is built so it works the moment she
+// switches it on. A `Mode` with neither prefix is skipped (never guessed) and
+// counted in `skipped` — watch that number if DDC ever changes the convention.
 export function platformForDomain(mode: string): 'Outbrain' | 'Taboola' | null {
   const d = (mode ?? '').toLowerCase();
   if (d.startsWith('ob.')) return 'Outbrain';
