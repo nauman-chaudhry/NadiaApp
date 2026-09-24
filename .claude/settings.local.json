@@ -18,7 +18,8 @@
       "Bash(curl -s \"http://localhost:4000/api/stats?view=campaign&from=2026-06-08&to=2026-06-14\" -o tb.json)",
       "Bash(node -e \"const d=require\\('./tb.json'\\);const r=d.rows||d;const s=k=>r.reduce\\(\\(a,x\\)=>a+\\(Number\\(x[k]\\)||0\\),0\\);console.log\\('taboola rows:',r.length,'cost \\\\$'+s\\('spent'\\).toFixed\\(2\\),'rev \\\\$'+s\\('revenue'\\).toFixed\\(2\\),'| any Outbrain leak:',r.some\\(x=>String\\(x.campaign_name||''\\).includes\\('Outbrain'\\)\\)\\);\")",
       "PowerShell($c = Get-NetTCPConnection -LocalPort 4000 -State Listen -ErrorAction SilentlyContinue; if \\($c\\) { Stop-Process -Id $c[0].OwningProcess -Force -Confirm:$false; \"cleared\" } else { \"free\" })",
-      "Bash(node_modules/.bin/tsc --noEmit)"
+      "Bash(node_modules/.bin/tsc --noEmit)",
+      "Bash(git push origin main)"
     ]
   }
 }
