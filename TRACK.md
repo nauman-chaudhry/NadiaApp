@@ -2376,7 +2376,21 @@ pulls after a cold start share one login).
 exactly his 6 Taboola + 5 Outbrain accounts (ids printed), codefuel/ddc off. `ENV_FILE=.env.joe
 codefuel-hourly …` → "source 'codefuel' is disabled … refusing to run". `tenant-tag image_advantage`
 dry run on Joe's empty DB → 0. **Consequence for Nadia's deploy:** her worker AND API now need
-`TENANT_ACCOUNT_EXCLUDE` + `TENANT_IA_AFFILIATE_INCLUDE` set before the next deploy or they exit at
-boot (the API imports tenant rules via the sync modules? — no: the API does not import tenant.ts,
-only the worker/run-once do; but set both anyway for consistency).
+`TENANT_ACCOUNT_EXCLUDE` + `TENANT_IA_AFFILIATE_INCLUDE` set before the next deploy or it exits at
+boot. (The API does not load `tenant.ts` — only the worker and `run-once` do — so the API is not
+affected; setting the vars on both services is still recommended for consistency.)
+**Commit:** below.
+
+### 2026-09-25 — Migration 050: unmatched IA/DDC revenue survives with no tagged account (review finding 4)
+**What:** `050_mv_orphans_survive_without_account.sql` — a copy of 047 with ONE change: the
+`ia_orphan` and `ddc_orphan` account laterals are `LEFT JOIN LATERAL`. With the inner join, a
+deployment with no account tagged for the partner silently dropped every unmatched IA/DDC row from
+the view (revenue vanished rather than showing as unattributed). Now such rows keep
+`ad_account_id NULL`, like the Codefuel orphan branch. The API's `-1`/`-8` branches already resolve
+the same account via a scalar subquery that yields NULL in that case, so Campaign == Ads holds.
+**Applied to both DBs.** Verified on Nadia's (all her IA/DDC accounts are tagged, so no row can
+change): totals before/after identical — see the two lines logged in the session (rows, spent,
+revenue, flux all equal; 0 orphan rows with a NULL account before and after). Joe's MV rebuilt,
+0 rows. Also: onboarding for a single-partner tenant no longer depends on remembering to tag —
+`TENANT_DEFAULT_PARTNER` (batch B) tags on discovery, and 050 is the safety net if it is unset.
 **Commit:** below.
