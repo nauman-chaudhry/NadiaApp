@@ -2471,3 +2471,17 @@ password decision, acceptance gate once he trades.
 - Outbrain password rotation: operator decided NOT to rotate (no second key available; shared
   credential stays as is).
 **Commit:** below.
+
+### 2026-09-25 — Joe: Nadia invited and made admin; SMTP note; client informed
+- Inviting Nadia on Joe's Supabase project first failed with **429** on `/auth/v1/invite`: the
+  project was on Supabase's built-in mailer (≈2 emails/hour, unreliable to outside addresses).
+  Fixed by the operator enabling **custom SMTP via Resend** (`smtp.resend.com:465`, user `resend`,
+  password = `RESEND_API_KEY`, sender `nadia@revlogicmedia.com`) on Joe's project — the same
+  Resend account that delivers the DDC report. Invite then succeeded at 18:12 UTC.
+- `app_users` on Joe's DB: `nadia777solutions@gmail.com` → **admin** (row created by the signup
+  trigger on invite, so the role was set before she accepted). Both admins now set.
+- Client told: Joe's dashboard live, both admins set, awaiting Joe's email; ads.txt live on all
+  five sites; DDC hourly feed empty since ~21 Sep (raised for her to chase with DDC).
+- Worth doing on Nadia's own project too: check Project Settings → Authentication → SMTP; if it is
+  on the built-in mailer, her magic-link logins share the same 2/hour limit.
+**Commit:** below.
