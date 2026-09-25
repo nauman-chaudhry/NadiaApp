@@ -1,8 +1,11 @@
 # Second dashboard ("Joe") — plan
 
-**Status (2026-09-24):** tenant filter + `ENABLED_SOURCES` **built and verified** (see TRACK.md);
-Joe's Supabase project **migrated to 047**; Render/Vercel not yet created; waiting on Nadia for IA
-affiliate names, a second Outbrain user (optional) and Joe's email. Launch: as soon as it's ready.
+**Status (2026-09-25):** code complete — tenancy, API auth, DB lockdown, orphan handling and the
+2026-09-24 review's findings 1–9 are built and verified (TRACK.md 2026-09-25). Joe's Supabase
+project is **migrated to 050**. Render/Vercel not yet created. Runbook with the final env lists and
+the acceptance gate: `docs/plans/joe-deploy-checklist.md`. IA affiliates resolved by prefix rule
+(no names needed); no second Outbrain key will be issued (token now lives in each DB). Still open:
+Joe's email, ads.txt rename, and the decision to rotate the Outbrain password.
 **Client answers (2026-09-17):** same Outbrain/IA credentials as Nadia's → filter required from the
 start. Image Advantage only, no other partners for now *(re-confirmed 2026-09-24)*.
 

@@ -55,8 +55,13 @@ every bug in this codebase.
 | Frontend | Next.js App Router, TanStack Table, Tailwind | Vercel (`nadia-dashboard-two.vercel.app`) |
 | Auth | Supabase Auth (magic link; `frontend/middleware.ts`) | — |
 
-The API has **no auth of its own** — only CORS, which is browser-only. Anyone with the URL can
-`curl` every endpoint.
+**API auth (since 2026-09-25):** every `/api/*` route requires `Authorization: Bearer <Supabase
+access token>` from the deployment's own Auth project, verified via `SUPABASE_URL` +
+`/auth/v1/user`, plus an `app_users` row (= invited). The frontend's server components attach the
+session token (`lib/api.ts`, `getAccessToken()`). Production refuses to start without
+`SUPABASE_URL`/`SUPABASE_ANON_KEY`; `API_AUTH_DISABLED=true` is for local dev only. Login is
+invite-only (`shouldCreateUser: false`). Browser roles (`anon`/`authenticated`) have **no** grants on
+the public schema (migration 049) — the frontend never queries the DB directly.
 
 Both Render services build from `rootDir: backend` (see `render.yaml`). **The API service runs
 migrations on build** (`npm run migrate:prod`); the worker does not. `ENABLE_CRON` is `false` on
@@ -338,8 +343,20 @@ too, with the reason.
 - **Git:** branch `main`, remote `origin` (GitHub). History was re-initialised on 2026-09-21
   (`36e7de1 m1.0`), so older TRACK.md commit hashes no longer resolve. Commit everything; push only
   after the user's explicit OK (§1).
-- **Latest applied migration: `047`** (2026-09-09). Authoritative MV = `047`. No migration is
-  pending.
+- **Latest applied migration: `050`** (2026-09-25), on BOTH databases (Nadia's and Joe's).
+  Authoritative MV = **`050`** (= 047 with `LEFT JOIN LATERAL` on the `ia_orphan`/`ddc_orphan`
+  account laterals). `048` = `app_settings` (Outbrain token store), `049` = revoke all browser-role
+  grants on `public`. No migration is pending.
+- **2026-09-24 critical review (`docs/reviews/2026-09-24-joe-dashboard-critical-review.md`) —
+  findings 1–9 fixed 2026-09-25**, see TRACK.md: anonymous DB access closed (049), API
+  authenticated, invite-only login, `ENABLE_CRON` parser, Flux affiliate discovery, production
+  requires explicit tenant rules, default partner tagging + `tenant-tag`, source guards on manual
+  jobs, orphan revenue kept without a tagged account (050), tabs keep filters, honest Hourly,
+  per-source freshness. **Not deployed yet.** Open decision: rotate the shared Outbrain password
+  (the token was readable via REST before 049; a new login does not invalidate an old token).
+- **Joe's dashboard:** tenancy code complete; Supabase project migrated to 050; Render/Vercel not
+  yet created. Runbook: `docs/plans/joe-deploy-checklist.md`. `backend/.env.joe` (gitignored) holds
+  his full config; local runs use `ENV_FILE=.env.joe`.
 - **Milestones 1–3 complete and live.** DDC (Milestone 3) is fully integrated: daily + hourly
   feeds, device split, `tt` normalisation + trailing-window click-weighted attribution (046),
   hourly cron, daily client CSV report. Live figures tie to DDC's own `report_type=date` API to the
@@ -392,7 +409,17 @@ confirmed (2026-09-24) Joe's will use a different prefix, so Nadia includes `^ss
 `npm run sync:once -- tenant-check` (read-only) shows what a rule set keeps/skips against the live
 APIs; `tenant-prune [--apply]` removes excluded accounts that hold no data. Frontend branding is
 `NEXT_PUBLIC_APP_NAME` / `_EXPORT_PREFIX` / `_DEFAULT_ACCOUNT` (`frontend/lib/brand.ts`).
-**Unset rules allow everything** — a deployment without them is the pre-tenancy behaviour.
+**Unset rules allow everything on a laptop, but production refuses to start without them:** with
+`NODE_ENV=production` the worker exits unless an account rule is set (and an IA affiliate rule when
+`image_advantage` is enabled), or `TENANT_ALLOW_ALL=true` states the intent. Rules match the display
+name **or** the platform id (Taboola `account_id`, Outbrain marketer id); blank IA affiliates are
+always rejected. `TENANT_DEFAULT_PARTNER=<code>` tags newly discovered accounts on first insert
+(Joe = `image_advantage`; unset for Nadia — manual tags are never overwritten);
+`run-once tenant-tag <code> --apply` tags existing ones. Flux (x-metrics) affiliates are
+discovered from the day's y-metrics feed ∪ `IA_X_AFFILIATES` ∪ the historical list, then filtered.
+Every `run-once` job is gated on `ENABLED_SOURCES` and logs a preflight line naming the target DB.
+Local runs for another tenant: `ENV_FILE=.env.joe npm run sync:once -- <job>` (only that file is
+read). The API does not load `tenant.ts`; only the worker and `run-once` do.
 
 ## Stale docs
 

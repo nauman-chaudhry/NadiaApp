@@ -1,3 +1,13 @@
+> **Resolution status (2026-09-25, see TRACK.md):** findings 1 (migration 049 + REST verified 401),
+> 2 (API auth + invite-only login), 3 (Flux affiliate discovery), 4 (`TENANT_DEFAULT_PARTNER`,
+> `tenant-tag`, migration 050 LEFT JOIN), 5 (production requires explicit rules; name-or-id matching;
+> blank affiliates rejected), 6 (source guards on every manual job; `ENV_FILE`), 7 (Hourly excludes
+> daily-grain Outbrain rows; Status/GD hidden on Outbrain Hourly), 8 (per-source `last_success`,
+> Outbrain included, worst-source headline), 9 (strict boolean parser) — **fixed, not yet deployed**.
+> Product notes: tabs keep filters, DDC notes tenant-gated — fixed. Login single-flight added.
+> Still open: Outbrain password rotation (decision), UTC-vs-local date presets, FilterBar state resync
+> on navigation, the acceptance matrix on real Joe data (checklist §6).
+
 # Joe dashboard — critical review
 
 Date: 2026-09-24. Code reviewed: `b0db255` and its tenancy predecessors.

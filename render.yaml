@@ -93,7 +93,10 @@ services:
       #                            TENANT_ACCOUNT_INCLUDE = ^SBH_rev_|Revlogic Media
       #                            TABOOLA_ACCOUNT_ID = revlogicmedia4945-network
       #                            TENANT_IA_AFFILIATE_EXCLUDE = ^ssm\.
+      #                            TENANT_DEFAULT_PARTNER = image_advantage
       #   Nadia additionally:      TENANT_IA_AFFILIATE_INCLUDE = ^ssm\.
+      # Production REFUSES to start without an account rule (and an IA affiliate
+      # rule when image_advantage is enabled) unless TENANT_ALLOW_ALL=true.
       - key: ENABLED_SOURCES
         value: taboola,outbrain,codefuel,image_advantage,ddc
       - key: TENANT_ACCOUNT_EXCLUDE

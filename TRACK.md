@@ -2414,3 +2414,14 @@ longer make a 17-hour Outbrain outage look fresh.
 **Not done (noted):** server default dates are UTC while browser presets use local dates; FilterBar
 does not resync state on navigation. Both minor; logged for later.
 **Commit:** below.
+
+### 2026-09-25 — Docs brought to one current state after the review fixes
+`CLAUDE.md` §3 (API auth), §12 (050 applied on both DBs; review findings 1–9 fixed, not deployed;
+Joe status), §13 (production-required rules, name-or-id matching, default partner, Flux discovery,
+`ENV_FILE`); `docs/plans/joe-deploy-checklist.md` rewritten with the final env lists for all four
+services, the browser check after deploy, the acceptance gate on real Joe data, and the password
+decision; `docs/plans/joe-dashboard.md` header; `render.yaml` comments; resolution status prepended
+to the review. **Deploy needed (Nadia): worker + API + frontend together** — the API now requires
+`SUPABASE_URL`/`SUPABASE_ANON_KEY` and the worker requires the two `TENANT_*` rules, or they exit at
+boot; the frontend sends the token the API now demands.
+**Commit:** below.
