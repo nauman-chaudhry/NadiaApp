@@ -29,6 +29,13 @@ services:
         sync: false
       - key: CORS_ORIGIN
         sync: false   # set to your Vercel URL, e.g. https://nadia-dashboard.vercel.app
+      # API auth (2026-09-24): the API verifies the dashboard's Supabase session
+      # token against THIS deployment's Auth project. Production refuses to start
+      # without these. Same project as the frontend's NEXT_PUBLIC_SUPABASE_*.
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
 
   # ── Cron worker (background service) ────────────────────────────────────────
   - type: worker

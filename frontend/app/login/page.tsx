@@ -18,6 +18,10 @@ export default function LoginPage() {
       email,
       options: {
         emailRedirectTo: `${window.location.origin}/auth/callback`,
+        // Invite-only: a magic link is sent only to addresses that already
+        // exist in Supabase Auth. Without this, anyone could self-register
+        // (subject to the hosted "allow signups" setting) and reach the API.
+        shouldCreateUser: false,
       },
     });
     setLoading(false);

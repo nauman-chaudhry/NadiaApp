@@ -1,4 +1,5 @@
 import { fetchFilterOptions, fetchStats, type StatsFilters, type StatsView } from '@/lib/api';
+import { getAccessToken } from '@/lib/supabase/server';
 import { Suspense } from 'react';
 import FilterBar from './FilterBar';
 import StatsTable from './StatsTable';
@@ -22,8 +23,9 @@ function daysAgo(n: number) {
 export default async function DashboardShell({ view, searchParams, note }: Props) {
   const resolvedFrom = searchParams.from ?? daysAgo(13);
   const resolvedTo   = searchParams.to   ?? today();
+  const token = await getAccessToken();
   const [options, stats] = await Promise.all([
-    fetchFilterOptions(),
+    fetchFilterOptions(token),
     fetchStats({
       view,
       from:        resolvedFrom,
@@ -37,7 +39,7 @@ export default async function DashboardShell({ view, searchParams, note }: Props
       site:        searchParams.site,
       source:      searchParams.source,
       feed:        searchParams.feed,
-    } as StatsFilters),
+    } as StatsFilters, token),
   ]);
 
   // Outbrain-specific tab notes:

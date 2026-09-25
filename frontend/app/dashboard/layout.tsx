@@ -1,4 +1,5 @@
 import { fetchSyncStatus } from '@/lib/api';
+import { getAccessToken } from '@/lib/supabase/server';
 import { APP_NAME } from '@/lib/brand';
 import NavTabs from './NavTabs';
 import SignOutButton from './SignOutButton';
@@ -26,7 +27,7 @@ const STALE_COLORS = { ok: 'text-teal-100', warn: 'text-yellow-300', stale: 'tex
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   let syncStatus = null;
-  try { syncStatus = await fetchSyncStatus(); } catch { /* non-fatal — don't break layout */ }
+  try { syncStatus = await fetchSyncStatus(await getAccessToken()); } catch { /* non-fatal — don't break layout */ }
 
   const lastSync = syncStatus?.last_sync_at ?? null;
   const level    = staleness(lastSync);

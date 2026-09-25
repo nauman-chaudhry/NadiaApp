@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import axios from 'axios';
 import { z } from 'zod';
 import { env } from '../config/env.js';
 import { logger } from '../config/logger.js';
@@ -11,6 +12,70 @@ app.use(express.json());
 
 // ---------- Health ----------
 app.get('/health', (_req, res) => res.json({ ok: true, ts: new Date().toISOString() }));
+
+// ---------- Auth ----------
+// Every /api route requires `Authorization: Bearer <Supabase access token>`.
+// The dashboard's server components attach the logged-in user's token; nothing
+// else is meant to call this API. The token is verified against THIS
+// deployment's Supabase project (so Nadia's session cannot read Joe's API and
+// vice versa), then the user must exist in app_users — the signup trigger
+// creates that row, so "exists" means "was invited". Until 2026-09-24 the API
+// had no auth at all: CORS only restricts browsers, and every endpoint answered
+// curl with the full account list.
+//
+// Fails CLOSED: in production, missing SUPABASE_URL/SUPABASE_ANON_KEY aborts
+// startup rather than running open. API_AUTH_DISABLED=true is for local dev.
+if (!env.API_AUTH_DISABLED && !(env.SUPABASE_URL && env.SUPABASE_ANON_KEY)) {
+  if (env.NODE_ENV === 'production') {
+    logger.error('SUPABASE_URL / SUPABASE_ANON_KEY not set — refusing to start the API without auth');
+    process.exit(1);
+  }
+  logger.warn('SUPABASE_URL / SUPABASE_ANON_KEY not set — API auth DISABLED (development only)');
+}
+const authOff = env.API_AUTH_DISABLED || !(env.SUPABASE_URL && env.SUPABASE_ANON_KEY);
+
+type AuthResult = { ok: boolean; userId?: string; until: number };
+const authCache = new Map<string, AuthResult>();
+const AUTH_TTL_OK_MS = 5 * 60_000;   // re-verify a good token every 5 min
+const AUTH_TTL_BAD_MS = 60_000;      // don't hammer Auth with a bad token either
+
+async function verifyBearer(token: string): Promise<AuthResult> {
+  const cached = authCache.get(token);
+  if (cached && cached.until > Date.now()) return cached;
+  let result: AuthResult = { ok: false, until: Date.now() + AUTH_TTL_BAD_MS };
+  try {
+    const { data } = await axios.get(`${env.SUPABASE_URL}/auth/v1/user`, {
+      headers: { apikey: env.SUPABASE_ANON_KEY!, Authorization: `Bearer ${token}` },
+      timeout: 10_000,
+    });
+    const userId: string | undefined = data?.id;
+    if (userId) {
+      const rows = await query<{ id: string }>('SELECT id FROM app_users WHERE id = $1', [userId]);
+      if (rows.length > 0) result = { ok: true, userId, until: Date.now() + AUTH_TTL_OK_MS };
+      else logger.warn({ userId }, 'auth: valid session but user is not in app_users');
+    }
+  } catch (err: any) {
+    const status = err?.response?.status;
+    if (status !== 401 && status !== 403) logger.error({ err: err?.message, status }, 'auth: verification failed');
+  }
+  if (authCache.size > 5000) authCache.clear();
+  authCache.set(token, result);
+  return result;
+}
+
+app.use('/api', async (req, res, next) => {
+  if (authOff) return next();
+  const header = req.headers.authorization ?? '';
+  const token = header.startsWith('Bearer ') ? header.slice(7).trim() : '';
+  if (!token) return res.status(401).json({ error: 'Unauthorized' });
+  try {
+    const v = await verifyBearer(token);
+    if (!v.ok) return res.status(401).json({ error: 'Unauthorized' });
+    next();
+  } catch (err) {
+    next(err);
+  }
+});
 
 // ---------- Latest sync run (for the "data updated" timestamp in the UI) ----------
 app.get('/api/sync-runs/latest', async (_req, res, next) => {

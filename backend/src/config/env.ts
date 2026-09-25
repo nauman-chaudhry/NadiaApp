@@ -1,5 +1,18 @@
-import 'dotenv/config';
+import { config as loadDotenv } from 'dotenv';
 import { z } from 'zod';
+
+// ENV_FILE selects which env file to load (default `.env`). A second tenant's
+// local runs use `ENV_FILE=.env.joe` so they can NEVER silently inherit the
+// first tenant's credentials from `.env` — dotenv does not override variables
+// already set in the shell, so this is the only file that is read.
+loadDotenv({ path: process.env.ENV_FILE ?? '.env' });
+
+// Strict boolean: `z.coerce.boolean()` turns ANY non-empty string — including
+// 'false' — into true, which made `ENABLE_CRON=false` schedule every job.
+const boolStr = z
+  .preprocess(v => (v === undefined || v === '' ? 'false' : String(v).trim().toLowerCase()),
+    z.enum(['true', 'false', '1', '0', 'yes', 'no']))
+  .transform(v => v === 'true' || v === '1' || v === 'yes');
 
 // Validate env once at boot. Fail loud if anything's missing.
 const schema = z.object({
@@ -50,7 +63,16 @@ const schema = z.object({
   LOG_LEVEL: z.string().default('info'),
   CORS_ORIGIN: z.string().default('http://localhost:3000'),
 
-  ENABLE_CRON: z.coerce.boolean().default(false),
+  ENABLE_CRON: boolStr,
+
+  // ── API authentication. Every /api route requires a Supabase session token
+  // from THIS deployment's Auth project; the API verifies it against
+  // SUPABASE_URL and then requires an app_users row (i.e. an invited user).
+  // API_AUTH_DISABLED=true is for local development only; server.ts refuses
+  // to start in production without SUPABASE_URL/SUPABASE_ANON_KEY.
+  SUPABASE_URL: z.string().url().optional(),
+  SUPABASE_ANON_KEY: z.string().optional(),
+  API_AUTH_DISABLED: boolStr,
 
   // ── Tenancy: one repo, deployed once per client (Nadia, Joe), each with its
   // own database. The partner APIs are shared credentials that return EVERY

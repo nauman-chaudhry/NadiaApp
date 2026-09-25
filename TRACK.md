@@ -2322,3 +2322,34 @@ partner rows, so real Joe financial reconciliation remains unverified. No live s
 email, deployment or production write; no application changes. User requested analysis/reporting,
 so fixes were documented rather than applied.
 **Commit:** documentation-only review commit; not pushed.
+
+### 2026-09-25 — Security fixes from the 2026-09-24 critical review (findings 1, 2, 9)
+**1. Anonymous DB access closed — migration `049_lock_down_public_schema.sql`.** Revokes ALL on every
+table/sequence/function in `public` from `anon` and `authenticated`, and changes the `postgres`
+role's DEFAULT PRIVILEGES so future tables and every re-created MV stay closed. The app never used
+PostgREST (frontend = Supabase Auth only; data via the Express API + `pg`), so nothing legitimate
+loses access. **Applied to both DBs.** Verified live: `GET /rest/v1/{app_settings,ad_accounts,
+joined_stats_hourly,app_users}` with the public key → **401 `42501`** on both projects (was 200).
+The Outbrain token that sat readable in `app_settings` was NOT rotated — a new login does not
+invalidate the old token; only a password change does. Decision for the operator/Nadia (see below).
+**2. API authentication — `server.ts`.** Every `/api/*` route now requires `Authorization: Bearer
+<Supabase access token>`; verified against THIS deployment's project (`SUPABASE_URL` +
+`/auth/v1/user`) and the user must exist in `app_users` (created by the signup trigger = invited).
+5-min positive / 1-min negative in-memory cache. Fails CLOSED in production without
+`SUPABASE_URL`/`SUPABASE_ANON_KEY`; `API_AUTH_DISABLED=true` for local dev only. Frontend server
+components pass the session token (`lib/api.ts` + `getAccessToken()` in `lib/supabase/server.ts`);
+no client component calls the API directly. Login now uses `shouldCreateUser: false` (invite-only
+regardless of the hosted signup setting). Verified locally: `/health` 200; no token / bogus token /
+the anon key as token → 401. A real session was not exercised (needs a browser login) — **the first
+deploy must be checked in the browser**, and `SUPABASE_URL`/`SUPABASE_ANON_KEY` must be set on the
+API service BEFORE deploying it or it will refuse to start.
+**9. `ENABLE_CRON` parsing.** `z.coerce.boolean()` made `'false'` → `true`. Replaced with a strict
+true/false/1/0/yes/no parser (also used for `API_AUTH_DISABLED`). Verified: `ENABLE_CRON=false`
+now exits with "worker exiting without scheduling jobs".
+**Also:** `ENV_FILE=<file>` selects the env file (default `.env`) so a second tenant's local runs
+never inherit the first tenant's credentials from `.env` (review finding 6, part 1). `.env.joe`
+now carries the full Joe configuration (21 keys, gitignored).
+**Deploy:** API (049 already applied; needs the two new env vars first) + worker + frontend.
+**Open decision:** rotate the shared Outbrain password (invalidates the previously exposed token;
+needs the new password on both workers' env) — recommended, but it is Nadia's credential.
+**Commit:** below.

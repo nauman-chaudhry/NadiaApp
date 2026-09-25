@@ -45,18 +45,25 @@ export interface FilterOptions {
   gds:       { gd_param: string }[];
 }
 
-export async function fetchStats(f: StatsFilters): Promise<{ rows: StatsRow[]; totals: Record<string, number>; view: StatsView }> {
+// The API requires the logged-in user's Supabase access token on every call
+// (Authorization: Bearer). These functions run in server components, which
+// obtain it from the session cookie via getAccessToken() in lib/supabase/server.
+function authHeaders(token?: string): HeadersInit {
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+export async function fetchStats(f: StatsFilters, token?: string): Promise<{ rows: StatsRow[]; totals: Record<string, number>; view: StatsView }> {
   const qs = new URLSearchParams();
   for (const [k, v] of Object.entries(f)) {
     if (v !== undefined && v !== '') qs.set(k, String(v));
   }
-  const res = await fetch(`${API_BASE}/api/stats?${qs}`, { cache: 'no-store' });
+  const res = await fetch(`${API_BASE}/api/stats?${qs}`, { cache: 'no-store', headers: authHeaders(token) });
   if (!res.ok) throw new Error(`fetchStats failed: ${res.status}`);
   return res.json();
 }
 
-export async function fetchFilterOptions(): Promise<FilterOptions> {
-  const res = await fetch(`${API_BASE}/api/filters/options`, { cache: 'no-store' });
+export async function fetchFilterOptions(token?: string): Promise<FilterOptions> {
+  const res = await fetch(`${API_BASE}/api/filters/options`, { cache: 'no-store', headers: authHeaders(token) });
   if (!res.ok) throw new Error(`fetchFilterOptions failed: ${res.status}`);
   return res.json();
 }
@@ -66,8 +73,8 @@ export interface SyncStatus {
   sources: { name: string; latest_hour: string | null; last_fetched: string | null }[];
 }
 
-export async function fetchSyncStatus(): Promise<SyncStatus> {
-  const res = await fetch(`${API_BASE}/api/sync-status`, { cache: 'no-store' });
+export async function fetchSyncStatus(token?: string): Promise<SyncStatus> {
+  const res = await fetch(`${API_BASE}/api/sync-status`, { cache: 'no-store', headers: authHeaders(token) });
   if (!res.ok) throw new Error(`fetchSyncStatus failed: ${res.status}`);
   return res.json();
 }
