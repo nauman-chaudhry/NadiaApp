@@ -27,6 +27,12 @@
  *       deployment's TENANT_* rules keep or skip (set the env vars on the command line)
  *   npm run sync:once -- tenant-prune [--apply]
  *     ^ delete ad_accounts rows the rules exclude that hold NO data (dry-run by default)
+ *   ENV_FILE=.env.joe npm run sync:once -- tenant-tag image_advantage [--apply]
+ *     ^ tag this deployment's untagged accounts with a partner (dry-run by default)
+ *
+ * Every job is gated on ENABLED_SOURCES: a job for a disabled source refuses to
+ * run, and refresh-all / sync-day skip disabled sources. Each run starts with a
+ * preflight log line naming the target DB host and the tenant rules.
  *   npm run sync:once -- backfill-full 2026-04-01
  *     ↑ does a full Apr-1-to-now backfill across all sources, handling the
  *       Codefuel 14-day hourly limit automatically.
@@ -55,7 +61,7 @@ import { sendDdcHourlyReport } from '../reports/ddc-hourly-csv.js';
 import { syncOutbrainCampaigns, syncOutbrainCost, syncOutbrainPromotedLinks, syncOutbrainBreakdowns, syncOutbrainAds, syncOutbrainCountry, syncOutbrainPublisher, syncOutbrainMarketerHourly } from '../sync/outbrain.js';
 import { logger } from '../config/logger.js';
 import { pool, query } from '../db/client.js';
-import { accountAllowed, describeTenant, iaAffiliateAllowed, sourceEnabled } from '../config/tenant.js';
+import { accountAllowed, describeTenant, iaAffiliateAllowed, sourceEnabled, type Source } from '../config/tenant.js';
 import { listAllowedAccounts } from '../sources/taboola/client.js';
 import { listMarketers } from '../sources/outbrain/client.js';
 import { fetchIAHourly } from '../sources/imageadvantage/client.js';
@@ -85,6 +91,10 @@ function addDays(d: Date, days: number): Date {
  */
 async function backfillFull(startDate: string) {
   logger.info({ startDate }, 'backfill-full: start');
+
+  // Taboola + Codefuel only; both must be enabled for this deployment.
+  requireSource('taboola');
+  requireSource('codefuel');
 
   // 1. Metadata first so we have accounts/campaigns/ads to attach stats to.
   await syncTaboolaMetadata();
@@ -128,12 +138,45 @@ async function backfillFull(startDate: string) {
   logger.info('backfill-full: done');
 }
 
+// Which source each manual job ingests for. Manual commands used to bypass
+// ENABLED_SOURCES entirely (review 2026-09-24, finding 6): a familiar recovery
+// command run for Joe would happily call Codefuel against Joe's database. Now a
+// job for a disabled source refuses to run.
+const SOURCE_OF_JOB: Record<string, Source> = {
+  'taboola-metadata': 'taboola', 'taboola-hourly': 'taboola', 'taboola-geo': 'taboola',
+  'taboola-hourly-auto': 'taboola', 'taboola-all-hourly': 'taboola',
+  'codefuel-hourly': 'codefuel', 'codefuel-daily': 'codefuel', 'codefuel-hourly-auto': 'codefuel',
+  'image-advantage-hourly': 'image_advantage', 'image-advantage-daily': 'image_advantage',
+  'image-advantage-backfill': 'image_advantage', 'image-advantage-hourly-auto': 'image_advantage',
+  'xmetrics-daily': 'image_advantage', 'xmetrics-backfill': 'image_advantage',
+  'outbrain-campaigns': 'outbrain', 'outbrain-ads': 'outbrain', 'outbrain-cost': 'outbrain',
+  'outbrain-breakdowns': 'outbrain', 'outbrain-ads-breakdown': 'outbrain',
+  'outbrain-country-breakdown': 'outbrain', 'outbrain-publisher-breakdown': 'outbrain',
+  'outbrain-marketer-hourly': 'outbrain',
+  'ddc': 'ddc', 'ddc-report': 'ddc', 'ddc-backfill': 'ddc', 'ddc-hourly': 'ddc',
+};
+
+function requireSource(source: Source): void {
+  if (!sourceEnabled(source)) {
+    throw new Error(`source '${source}' is disabled for this deployment (ENABLED_SOURCES) — refusing to run`);
+  }
+}
+
 async function main() {
   const [, , job, startDate, endDate] = process.argv;
   if (!job) {
     console.error('Usage: sync:once <job> [startDate] [endDate]');
     process.exit(1);
   }
+
+  // Preflight banner: which database and which tenant rules this run targets.
+  // Two deployments share one repo, so make the destination impossible to miss.
+  logger.info(
+    { db: new URL(process.env.DATABASE_URL ?? 'postgres://unknown').hostname, envFile: process.env.ENV_FILE ?? '.env', tenant: describeTenant(), job },
+    'run-once: preflight',
+  );
+  const jobSource = SOURCE_OF_JOB[job];
+  if (jobSource) requireSource(jobSource);
 
   switch (job) {
     case 'taboola-metadata':
@@ -278,10 +321,10 @@ async function main() {
       console.log(`rules: ${describeTenant()}`);
       const tb = await listAllowedAccounts();
       console.log('\nTaboola accounts:');
-      for (const a of tb) console.log(`  ${accountAllowed(a.name) ? 'KEEP' : 'skip'}  ${a.type.padEnd(8)} ${a.name}`);
+      for (const a of tb) console.log(`  ${accountAllowed(a.name, a.account_id) ? 'KEEP' : 'skip'}  ${a.type.padEnd(8)} ${a.name}  (${a.account_id})`);
       const ob = await listMarketers();
       console.log('\nOutbrain marketers:');
-      for (const m of ob) console.log(`  ${accountAllowed(m.name) ? 'KEEP' : 'skip'}  ${m.name}`);
+      for (const m of ob) console.log(`  ${accountAllowed(m.name, m.id) ? 'KEEP' : 'skip'}  ${m.name}  (${m.id})`);
       if (sourceEnabled('image_advantage')) {
         const rows = await fetchIAHourly(isoDay(addDays(new Date(), -1)));
         const affiliates = [...new Set(rows.map(r => r.affiliate))].sort();
@@ -291,6 +334,36 @@ async function main() {
       console.log(`\nSources: ${['taboola','outbrain','codefuel','image_advantage','ddc'].map(s => `${s}=${sourceEnabled(s as any) ? 'on' : 'off'}`).join('  ')}`);
       break;
     }
+    case 'tenant-tag': {
+      // Tag every account THIS deployment owns that has no partner yet. For a
+      // single-partner tenant (Joe = image_advantage) this is the onboarding
+      // step that was missing: untagged accounts hide the Project/Feeds
+      // controls and give the MV's IA-orphan lateral no account to book to.
+      // Dry-run by default; pass --apply to write.
+      //   ENV_FILE=.env.joe npm run sync:once -- tenant-tag image_advantage --apply
+      const code = process.argv[3];
+      const apply = process.argv.includes('--apply');
+      if (!code || code.startsWith('--')) throw new Error('usage: tenant-tag <partner_code> [--apply]');
+      const partner = await query<{ id: number }>('SELECT id FROM client_partners WHERE code = $1', [code]);
+      if (!partner[0]) throw new Error(`unknown partner code '${code}'`);
+      const untagged = await query<{ id: number; name: string; external_id: string; platform: string }>(
+        `SELECT a.id, a.name, a.external_id, p.code AS platform
+           FROM ad_accounts a JOIN platforms p ON p.id = a.platform_id
+          WHERE a.client_partner_id IS NULL ORDER BY p.code, a.name`,
+      );
+      const mine = untagged.filter(r => accountAllowed(r.name, r.external_id));
+      console.log(`rules: ${describeTenant()}\n`);
+      for (const r of mine) console.log(`  tag ${code}  ${r.platform.padEnd(8)} ${r.name}`);
+      if (untagged.length > mine.length) {
+        console.log(`  (${untagged.length - mine.length} untagged account(s) not owned by this deployment — left alone)`);
+      }
+      if (!apply) { console.log(`\nDry run — ${mine.length} would be tagged. Re-run with --apply.`); break; }
+      if (mine.length) {
+        await query('UPDATE ad_accounts SET client_partner_id = $1 WHERE id = ANY($2::int[])', [partner[0].id, mine.map(r => r.id)]);
+      }
+      console.log(`\nTagged ${mine.length} account(s) as ${code}.`);
+      break;
+    }
     case 'tenant-prune': {
       // Remove ad_accounts rows that the tenant rules now exclude AND that hold
       // no data (no campaigns, no Outbrain campaigns, no cost rows). Anything
@@ -298,15 +371,15 @@ async function main() {
       // Dry-run by default; pass --apply to delete.
       //   TENANT_ACCOUNT_EXCLUDE='…' npm run sync:once -- tenant-prune [--apply]
       const apply = process.argv.includes('--apply');
-      const rows = await query<{ id: number; name: string; platform: string; campaigns: string; ob_campaigns: string; stats: string }>(
-        `SELECT a.id, a.name, p.code AS platform,
+      const rows = await query<{ id: number; name: string; external_id: string; platform: string; campaigns: string; ob_campaigns: string; stats: string }>(
+        `SELECT a.id, a.name, a.external_id, p.code AS platform,
                 (SELECT COUNT(*) FROM campaigns c WHERE c.ad_account_id = a.id)                    AS campaigns,
                 (SELECT COUNT(*) FROM outbrain_campaigns oc WHERE oc.marketer_id = a.external_id) AS ob_campaigns,
                 (SELECT COUNT(*) FROM ad_stats_hourly s WHERE s.ad_account_id = a.id)             AS stats
            FROM ad_accounts a JOIN platforms p ON p.id = a.platform_id
           ORDER BY p.code, a.name`,
       );
-      const excluded = rows.filter(r => !accountAllowed(r.name));
+      const excluded = rows.filter(r => !accountAllowed(r.name, r.external_id));
       const empty = excluded.filter(r => r.campaigns === '0' && r.ob_campaigns === '0' && r.stats === '0');
       const withData = excluded.filter(r => !empty.includes(r));
       console.log(`rules: ${describeTenant()}`);
@@ -361,29 +434,41 @@ async function main() {
       logger.info('refresh-all: starting (4-day window)');
       const raStart = isoDay(addDays(new Date(), -3));
       const raEnd   = isoDay(new Date());              // today UTC
-      // Taboola's hourly report rejects wide ranges — sync in 2-day sub-windows.
-      for (let off = -3; off <= 0; off += 2) {
-        const a = isoDay(addDays(new Date(), off));
-        const b = isoDay(addDays(new Date(), Math.min(off + 1, 0)));
-        await syncTaboolaHourly({ startDate: a, endDate: b });
+      // Every source is gated on ENABLED_SOURCES (a disabled source is skipped,
+      // not failed) — this is a recovery command and must respect tenancy.
+      if (sourceEnabled('taboola')) {
+        // Taboola's hourly report rejects wide ranges — sync in 2-day sub-windows.
+        for (let off = -3; off <= 0; off += 2) {
+          const a = isoDay(addDays(new Date(), off));
+          const b = isoDay(addDays(new Date(), Math.min(off + 1, 0)));
+          await syncTaboolaHourly({ startDate: a, endDate: b });
+        }
       }
-      await syncCodefuel({ startDate: raStart, endDate: raEnd, granularity: 'hourly' });
-      // IA y-metrics (Yahoo): bars today — sync D-3 .. D-1.
-      for (let off = -3; off <= -1; off++) {
-        await syncImageAdvantage({ date: isoDay(addDays(new Date(), off)), granularity: 'hourly' });
+      if (sourceEnabled('codefuel')) {
+        await syncCodefuel({ startDate: raStart, endDate: raEnd, granularity: 'hourly' });
       }
-      // IA x-metrics (non-Yahoo display): also bars today — sync D-3 .. D-1.
-      for (let off = -3; off <= -1; off++) {
-        await syncXMetricsDaily({ date: isoDay(addDays(new Date(), off)) });
+      if (sourceEnabled('image_advantage')) {
+        // IA y-metrics (Yahoo): bars today — sync D-3 .. D-1.
+        for (let off = -3; off <= -1; off++) {
+          await syncImageAdvantage({ date: isoDay(addDays(new Date(), off)), granularity: 'hourly' });
+        }
+        // IA x-metrics (non-Yahoo display): also bars today — sync D-3 .. D-1.
+        for (let off = -3; off <= -1; off++) {
+          await syncXMetricsDaily({ date: isoDay(addDays(new Date(), off)) });
+        }
       }
-      // Real device/country cost (daily) over the window.
-      await syncTaboolaGeoCost({ startDate: raStart, endDate: raEnd });
-      // Outbrain: refresh campaign list + per-campaign daily cost + breakdowns.
-      // Revenue arrives via the Codefuel/IA syncs above (source_platform='Outbrain').
-      await syncOutbrainCampaigns();
-      await syncOutbrainPromotedLinks();
-      await syncOutbrainCost({ from: raStart, to: raEnd });
-      await syncOutbrainBreakdowns({ from: raStart, to: raEnd });
+      if (sourceEnabled('taboola')) {
+        // Real device/country cost (daily) over the window.
+        await syncTaboolaGeoCost({ startDate: raStart, endDate: raEnd });
+      }
+      if (sourceEnabled('outbrain')) {
+        // Outbrain: refresh campaign list + per-campaign daily cost + breakdowns.
+        // Revenue arrives via the Codefuel/IA syncs above (source_platform='Outbrain').
+        await syncOutbrainCampaigns();
+        await syncOutbrainPromotedLinks();
+        await syncOutbrainCost({ from: raStart, to: raEnd });
+        await syncOutbrainBreakdowns({ from: raStart, to: raEnd });
+      }
       await refreshJoinedView();
       logger.info({ window: `${raStart}..${raEnd}` }, 'refresh-all: done');
       break;
@@ -397,17 +482,20 @@ async function main() {
       const sdStart = startDate;
       const sdEnd   = isoDay(addDays(new Date(`${startDate}T00:00:00Z`), 1));
       logger.info({ date: startDate, window: `${sdStart}→${sdEnd}` }, 'sync-day: starting');
-      await syncTaboolaHourly({ startDate: sdStart, endDate: sdEnd });
-      await syncCodefuel({ startDate: sdStart, endDate: sdEnd, granularity: 'hourly' });
+      // Gated on ENABLED_SOURCES like refresh-all.
+      if (sourceEnabled('taboola')) await syncTaboolaHourly({ startDate: sdStart, endDate: sdEnd });
+      if (sourceEnabled('codefuel')) await syncCodefuel({ startDate: sdStart, endDate: sdEnd, granularity: 'hourly' });
       // IA API bars today; skip if date is today or future
       const today = isoDay(new Date());
-      if (sdStart < today) {
-        await syncImageAdvantage({ date: sdStart, granularity: 'hourly' });
-      } else {
-        logger.info({ date: sdStart }, 'sync-day: skipping IA (date is today or future)');
+      if (sourceEnabled('image_advantage')) {
+        if (sdStart < today) {
+          await syncImageAdvantage({ date: sdStart, granularity: 'hourly' });
+        } else {
+          logger.info({ date: sdStart }, 'sync-day: skipping IA (date is today or future)');
+        }
       }
       // Real device/country cost for the day.
-      await syncTaboolaGeoCost({ startDate: sdStart, endDate: sdStart });
+      if (sourceEnabled('taboola')) await syncTaboolaGeoCost({ startDate: sdStart, endDate: sdStart });
       await refreshJoinedView();
       logger.info({ date: startDate }, 'sync-day: done');
       break;

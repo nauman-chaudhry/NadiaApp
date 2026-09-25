@@ -219,9 +219,17 @@ export interface IAXUsertagRow extends IAXRow {
  * format as the y-metrics by-affiliate user_tag. x-metrics has no .ob
  * affiliates, so we only iterate the Taboola (.tb) list.
  */
-export async function fetchIAXByUsertag(date: string): Promise<IAXUsertagRow[]> {
+export async function fetchIAXByUsertag(
+  date: string,
+  // Which affiliates to request. Defaults to the historical hardcoded list —
+  // Nadia's `ssm.*.tb` names — which is why a second tenant's Flux revenue was
+  // never requested at all (review 2026-09-24, finding 3). The sync now passes
+  // a tenant-filtered list that also includes affiliates discovered from the
+  // day's y-metrics feed and any IA_X_AFFILIATES from the environment.
+  affiliates: readonly string[] = IA_TB_AFFILIATES,
+): Promise<IAXUsertagRow[]> {
   const all: IAXUsertagRow[] = [];
-  for (const affiliate of IA_TB_AFFILIATES) {
+  for (const affiliate of affiliates) {
     let page = 1;
     while (true) {
       const res = await iaRequest('/x-metrics/revenue/daily/by-usertag', { account_id: ACCOUNT_ID, affiliate, date, page });

@@ -13,7 +13,7 @@ import {
 import { extractJoinParams } from '../utils/url-params.js';
 import { withTx, query } from '../db/client.js';
 import { logger } from '../config/logger.js';
-import { accountAllowed } from '../config/tenant.js';
+import { accountAllowed, defaultPartnerCode } from '../config/tenant.js';
 
 const TABOOLA_PLATFORM_CODE = 'taboola';
 
@@ -40,19 +40,22 @@ export async function syncTaboolaMetadata(): Promise<void> {
   // items, hourly stats, geo cost — keys off the ad_accounts/campaigns rows
   // created here, so filtering the discovery list is sufficient for Taboola.
   const allAccounts = await listAllowedAccounts();
-  const accounts = allAccounts.filter(a => accountAllowed(a.name));
+  const accounts = allAccounts.filter(a => accountAllowed(a.name, a.account_id));
   if (accounts.length !== allAccounts.length) {
     logger.info(
-      { kept: accounts.length, skipped: allAccounts.filter(a => !accountAllowed(a.name)).map(a => a.name) },
+      { kept: accounts.length, skipped: allAccounts.filter(a => !accountAllowed(a.name, a.account_id)).map(a => a.name) },
       'taboola metadata: tenant filter applied to accounts',
     );
   }
   logger.info({ count: accounts.length }, 'taboola metadata: accounts');
 
   for (const acc of accounts) {
+    // client_partner_id is set ONLY on first insert, and only when this
+    // deployment declares a default partner (single-partner tenants). An
+    // existing row keeps whatever it has — manual tags are never overwritten.
     await query(
-      `INSERT INTO ad_accounts (platform_id, external_id, name, status, currency, timezone)
-       VALUES ($1, $2, $3, $4, $5, $6)
+      `INSERT INTO ad_accounts (platform_id, external_id, name, status, currency, timezone, client_partner_id)
+       VALUES ($1, $2, $3, $4, $5, $6, (SELECT id FROM client_partners WHERE code = $7))
        ON CONFLICT (platform_id, external_id)
        DO UPDATE SET name = EXCLUDED.name, status = EXCLUDED.status,
                      currency = EXCLUDED.currency, timezone = EXCLUDED.timezone`,
@@ -63,6 +66,7 @@ export async function syncTaboolaMetadata(): Promise<void> {
         acc.is_active ? 'active' : 'inactive',
         acc.currency ?? 'USD',
         acc.time_zone_name ?? 'UTC',
+        defaultPartnerCode,
       ],
     );
   }

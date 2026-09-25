@@ -12,7 +12,7 @@ import {
 } from '../sources/outbrain/client.js';
 import { withTx, query } from '../db/client.js';
 import { logger } from '../config/logger.js';
-import { accountAllowed } from '../config/tenant.js';
+import { accountAllowed, defaultPartnerCode } from '../config/tenant.js';
 
 // Durable Outbrain token cache in THIS deployment's database (app_settings,
 // migration 048), installed here because the HTTP client must stay DB-free.
@@ -45,10 +45,10 @@ setOutbrainTokenStore({
  */
 async function tenantMarketers() {
   const all = await listMarketers();
-  const mine = all.filter(m => accountAllowed(m.name));
+  const mine = all.filter(m => accountAllowed(m.name, m.id));
   if (mine.length !== all.length) {
     logger.info(
-      { kept: mine.map(m => m.name), skipped: all.filter(m => !accountAllowed(m.name)).map(m => m.name) },
+      { kept: mine.map(m => m.name), skipped: all.filter(m => !accountAllowed(m.name, m.id)).map(m => m.name) },
       'outbrain: tenant filter applied to marketers',
     );
   }
@@ -143,11 +143,16 @@ export async function syncOutbrainCampaigns(): Promise<{ campaigns: number }> {
   // client_partner_id is left NULL for new rows; mapping to a project stays
   // a deliberate manual step.
   for (const mk of marketers) {
+    // client_partner_id is set ONLY on first insert, and only when this
+    // deployment declares TENANT_DEFAULT_PARTNER (single-partner tenants);
+    // existing rows keep their (manual) tag.
     await query(
-      `INSERT INTO ad_accounts (platform_id, external_id, name, status, currency, timezone)
-       SELECT id, $1, $2, 'active', 'USD', 'America/New_York' FROM platforms WHERE code = 'outbrain'
+      `INSERT INTO ad_accounts (platform_id, external_id, name, status, currency, timezone, client_partner_id)
+       SELECT id, $1, $2, 'active', 'USD', 'America/New_York',
+              (SELECT id FROM client_partners WHERE code = $3)
+         FROM platforms WHERE code = 'outbrain'
        ON CONFLICT (platform_id, external_id) DO UPDATE SET name = EXCLUDED.name`,
-      [mk.id, mk.name],
+      [mk.id, mk.name, defaultPartnerCode],
     );
   }
   for (const mk of marketers) {

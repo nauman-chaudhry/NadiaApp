@@ -3,11 +3,13 @@ import {
   fetchIADaily,
   fetchIAXByUsertag,
   resetIAToken,
+  IA_TB_AFFILIATES,
   IARow,
   IAXUsertagRow,
 } from '../sources/imageadvantage/client.js';
 import { withTx, query } from '../db/client.js';
 import { logger } from '../config/logger.js';
+import { env } from '../config/env.js';
 import { iaAffiliateAllowed } from '../config/tenant.js';
 
 const IA_PARTNER_CODE = 'image_advantage';
@@ -19,6 +21,24 @@ const IA_PARTNER_CODE = 'image_advantage';
  * no campaign here and land in the "(Unattributed revenue — Image Advantage)"
  * row — silently inflating this dashboard. Unset rules = keep everything.
  */
+/**
+ * Affiliates to request from the per-affiliate x-metrics endpoint for a day:
+ * historical list ∪ IA_X_AFFILIATES ∪ `.tb` affiliates seen in that day's
+ * (unfiltered) y-metrics daily feed — then this deployment's tenant rule.
+ */
+async function xMetricsAffiliates(date: string): Promise<string[]> {
+  const fromEnv = (env.IA_X_AFFILIATES ?? '').split(',').map(s => s.trim()).filter(Boolean);
+  let discovered: string[] = [];
+  try {
+    const rows = await fetchIADaily(date);
+    discovered = [...new Set(rows.map(r => r.affiliate))].filter(a => /\.tb(-\d+)?$/i.test(a));
+  } catch (e: any) {
+    logger.warn({ err: e.message, date }, 'x-metrics: could not discover affiliates from y-metrics; using configured list');
+  }
+  const all = [...new Set([...IA_TB_AFFILIATES, ...fromEnv, ...discovered])];
+  return all.filter(a => iaAffiliateAllowed(a)).sort();
+}
+
 function tenantRows<T extends { affiliate: string }>(rows: T[], ctx: Record<string, unknown>): T[] {
   const kept = rows.filter(r => iaAffiliateAllowed(r.affiliate));
   if (kept.length !== rows.length) {
@@ -282,11 +302,16 @@ export async function syncXMetricsDaily(opts: {
   const runId = await startRun('image_advantage_x', 'x-daily', opts.date, opts.date);
 
   try {
-    // x-metrics is fetched per affiliate from the hardcoded IA_TB_AFFILIATES
-    // list, so the tenant filter is applied to the rows the same way as
-    // y-metrics. (A new tenant's flux affiliates must also be added to that
-    // list — it is the one IA path that is not auto-discovered.)
-    const rawRows = tenantRows(await fetchIAXByUsertag(opts.date), { date: opts.date, granularity: 'x-daily' });
+    // x-metrics has no unfiltered endpoint: it must be asked per affiliate. The
+    // list used to be hardcoded to Nadia's nine `ssm.*.tb` names, so a second
+    // tenant's Flux revenue was never requested (review 2026-09-24, finding 3).
+    // Now: the historical list ∪ IA_X_AFFILIATES ∪ every `.tb` affiliate that
+    // appears in the same day's y-metrics feed (which IS unfiltered, so new
+    // affiliates surface there first), then the tenant rule. Requesting an
+    // affiliate that has no x-metrics simply returns no rows.
+    const affiliates = await xMetricsAffiliates(opts.date);
+    logger.info({ date: opts.date, affiliates }, 'x-metrics: affiliates to request');
+    const rawRows = tenantRows(await fetchIAXByUsertag(opts.date, affiliates), { date: opts.date, granularity: 'x-daily' });
     // Reuse the same campaign-vs-item de-dup as y-metrics (drop campaign-level
     // aggregate rows when item-level data exists for the same campaign).
     const xRows = deduplicateXCampaignVsItem(rawRows, opts.date);

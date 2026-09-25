@@ -110,12 +110,20 @@ async function login(): Promise<string> {
   }
 }
 
+// Single-flight: concurrent callers that all find no cached token (e.g. the
+// three Outbrain pulls in the :25 cron tick after a redeploy) share ONE login
+// instead of each spending one of the 2-per-hour allowance.
+let loginInFlight: Promise<string> | null = null;
+
 async function getToken(forceRefresh = false): Promise<string> {
   if (!forceRefresh) {
     const cached = await readCachedToken();
     if (cached) return cached;
   }
-  return login();
+  if (!loginInFlight) {
+    loginInFlight = login().finally(() => { loginInFlight = null; });
+  }
+  return loginInFlight;
 }
 
 async function makeClient(forceRefresh = false): Promise<AxiosInstance> {

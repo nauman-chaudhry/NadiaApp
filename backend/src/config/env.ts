@@ -88,6 +88,15 @@ const schema = z.object({
   TENANT_ACCOUNT_EXCLUDE: z.string().optional(),
   TENANT_IA_AFFILIATE_INCLUDE: z.string().optional(),
   TENANT_IA_AFFILIATE_EXCLUDE: z.string().optional(),
+  //   TENANT_ALLOW_ALL        explicit opt-out of the production "rules required" check
+  //   TENANT_DEFAULT_PARTNER  partner code newly discovered accounts are tagged with
+  //                           (single-partner tenants, e.g. Joe = image_advantage)
+  //   IA_X_AFFILIATES         extra IA affiliates to request from the x-metrics
+  //                           (Flux) by-usertag endpoint, comma list; the sync also
+  //                           discovers .tb affiliates from the day's y-metrics feed
+  TENANT_ALLOW_ALL: boolStr,
+  TENANT_DEFAULT_PARTNER: z.string().optional(),
+  IA_X_AFFILIATES: z.string().optional(),
 });
 
 const parsed = schema.safeParse(process.env);

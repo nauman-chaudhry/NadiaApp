@@ -2353,3 +2353,30 @@ now carries the full Joe configuration (21 keys, gitignored).
 **Open decision:** rotate the shared Outbrain password (invalidates the previously exposed token;
 needs the new password on both workers' env) — recommended, but it is Nadia's credential.
 **Commit:** below.
+
+### 2026-09-25 — Tenancy hardening from the critical review (findings 3, 5, 6 + token single-flight)
+**3. Joe's Flux revenue is now requested.** `fetchIAXByUsertag(date, affiliates)` takes the list;
+`syncXMetricsDaily` builds it as historical `IA_TB_AFFILIATES` ∪ `IA_X_AFFILIATES` (env) ∪ every
+`.tb` affiliate seen in that day's unfiltered y-metrics feed, then applies the tenant rule. Joe's
+affiliates surface in y-metrics first, so they are picked up without a code change.
+**5. No permissive defaults in production.** `tenant.ts`: with `NODE_ENV=production` the process
+refuses to start unless an account rule is set (and an IA affiliate rule when image_advantage is
+enabled), or `TENANT_ALLOW_ALL=true` states the intent. Rules now match the display name OR the
+platform id (Taboola `account_id`, Outbrain marketer id) so accounts can be pinned by id. Blank
+affiliates are rejected (quarantined as skipped). `TENANT_DEFAULT_PARTNER` tags newly discovered
+accounts on first insert only (Joe = `image_advantage`; unset for Nadia — manual tags untouched);
+`run-once tenant-tag <code> [--apply]` tags existing untagged accounts this deployment owns.
+**6. Manual commands honour ENABLED_SOURCES.** Every `run-once` job maps to a source and refuses to
+run when it is disabled; `refresh-all`/`sync-day` skip disabled sources; `backfill-full` requires
+taboola+codefuel. Each run logs a preflight line (target DB host, `ENV_FILE`, tenant rules).
+**Token:** concurrent logins are single-flighted in the Outbrain client (the `:25` tick's three
+pulls after a cold start share one login).
+**Verified:** `tsc` clean. `NODE_ENV=production` without rules → exits with the named message;
+`TENANT_ALLOW_ALL=true` runs. `ENV_FILE=.env.joe tenant-check` → preflight names Joe's DB, keeps
+exactly his 6 Taboola + 5 Outbrain accounts (ids printed), codefuel/ddc off. `ENV_FILE=.env.joe
+codefuel-hourly …` → "source 'codefuel' is disabled … refusing to run". `tenant-tag image_advantage`
+dry run on Joe's empty DB → 0. **Consequence for Nadia's deploy:** her worker AND API now need
+`TENANT_ACCOUNT_EXCLUDE` + `TENANT_IA_AFFILIATE_INCLUDE` set before the next deploy or they exit at
+boot (the API imports tenant rules via the sync modules? — no: the API does not import tenant.ts,
+only the worker/run-once do; but set both anyway for consistency).
+**Commit:** below.

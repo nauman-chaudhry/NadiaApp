@@ -2,7 +2,8 @@ import { env } from './env.js';
 
 /**
  * Tenancy rules for a deployment. One repo is deployed once per client (Nadia,
- * Joe), each against its own database — see docs/plans/joe-dashboard.md.
+ * Joe), each against its own database — see docs/plans/joe-dashboard.md and
+ * CLAUDE.md §13.
  *
  * The partner credentials are SHARED and their APIs return every account they
  * can see (Outbrain `listMarketers()` returns all 20 marketers; Taboola
@@ -10,11 +11,18 @@ import { env } from './env.js';
  * So every place that lists accounts must ask this module which ones belong to
  * this deployment, or Joe's spend lands in Nadia's tables and vice versa.
  *
- * Rules are regexes on NAMES because that is the only field both platforms
- * share and the only one the operator can read in the dashboards:
+ * Rules are regexes tested against BOTH the display name and the platform's
+ * stable id (Taboola `account_id`, Outbrain marketer id), so an operator can
+ * pin an account by id when a name is ambiguous or gets renamed:
  *   Nadia's worker: TENANT_ACCOUNT_EXCLUDE = ^SBH_rev_|Revlogic Media
  *   Joe's worker:   TENANT_ACCOUNT_INCLUDE = ^SBH_rev_|Revlogic Media
- * Unset = allow everything (the pre-tenancy behaviour).
+ *
+ * PRODUCTION REQUIRES EXPLICIT RULES. Unset rules allow everything, which is
+ * the pre-tenancy behaviour and fine on a laptop, but in production a
+ * deployment that forgot its rules would ingest every client's data. So with
+ * NODE_ENV=production the process refuses to start unless an account rule is
+ * set (and an IA affiliate rule, when image_advantage is enabled) — or
+ * TENANT_ALLOW_ALL=true states the intent explicitly.
  *
  * Nothing here touches the API or the MV: filtering happens at ingestion only,
  * so a mistake shows up as a missing account, never as wrong numbers.
@@ -46,10 +54,19 @@ const accountExclude = compile('TENANT_ACCOUNT_EXCLUDE', env.TENANT_ACCOUNT_EXCL
 const affiliateInclude = compile('TENANT_IA_AFFILIATE_INCLUDE', env.TENANT_IA_AFFILIATE_INCLUDE);
 const affiliateExclude = compile('TENANT_IA_AFFILIATE_EXCLUDE', env.TENANT_IA_AFFILIATE_EXCLUDE);
 
-function allowed(name: string, include: RegExp | null, exclude: RegExp | null): boolean {
-  if (include && !include.test(name)) return false;
-  if (exclude && exclude.test(name)) return false;
-  return true;
+if (env.NODE_ENV === 'production' && !env.TENANT_ALLOW_ALL) {
+  const problems: string[] = [];
+  if (!accountInclude && !accountExclude) problems.push('TENANT_ACCOUNT_INCLUDE or TENANT_ACCOUNT_EXCLUDE');
+  if (enabled.has('image_advantage') && !affiliateInclude && !affiliateExclude) {
+    problems.push('TENANT_IA_AFFILIATE_INCLUDE or TENANT_IA_AFFILIATE_EXCLUDE (image_advantage is enabled)');
+  }
+  if (problems.length) {
+    console.error(
+      `Tenancy: production requires explicit rules — set ${problems.join(' and ')}, ` +
+      `or TENANT_ALLOW_ALL=true to run this deployment against every account on the shared credentials.`,
+    );
+    process.exit(1);
+  }
 }
 
 /** Is this source (and therefore its cron jobs and backfill steps) on for this deployment? */
@@ -57,19 +74,44 @@ export function sourceEnabled(source: Source): boolean {
   return enabled.has(source);
 }
 
-/** Taboola account name or Outbrain marketer name → does it belong to this deployment? */
-export function accountAllowed(name: string): boolean {
-  return allowed(name ?? '', accountInclude, accountExclude);
+/**
+ * Taboola account / Outbrain marketer → does it belong to this deployment?
+ * Include: passes if the NAME or the ID matches. Exclude: fails if either matches.
+ */
+export function accountAllowed(name: string, externalId?: string): boolean {
+  const keys = [name ?? '', externalId ?? ''].filter(Boolean);
+  if (accountInclude && !keys.some(k => accountInclude.test(k))) return false;
+  if (accountExclude && keys.some(k => accountExclude.test(k))) return false;
+  return true;
 }
 
-/** Image Advantage affiliate (e.g. 'ssm.n2s.pro.tb') → does it belong to this deployment? */
+/**
+ * Image Advantage affiliate (e.g. 'ssm.n2s.pro.tb') → does it belong to this
+ * deployment? A blank affiliate is never accepted: it cannot be owned by
+ * anyone, so it is quarantined (counted as skipped by the sync) rather than
+ * ingested as unattributed revenue.
+ */
 export function iaAffiliateAllowed(affiliate: string): boolean {
-  return allowed(affiliate ?? '', affiliateInclude, affiliateExclude);
+  const a = (affiliate ?? '').trim();
+  if (!a) return false;
+  if (affiliateInclude && !affiliateInclude.test(a)) return false;
+  if (affiliateExclude && affiliateExclude.test(a)) return false;
+  return true;
 }
+
+/**
+ * Partner code newly discovered accounts are tagged with (TENANT_DEFAULT_PARTNER).
+ * For a single-partner tenant (Joe = image_advantage) this replaces the manual
+ * tagging step that otherwise leaves accounts "Untagged" — which hides the
+ * Project/Feeds controls and, worse, makes the MV's IA-orphan lateral find no
+ * account. Unset for Nadia: her accounts are tagged deliberately by hand.
+ */
+export const defaultPartnerCode: string | null = env.TENANT_DEFAULT_PARTNER?.trim() || null;
 
 /** One-line summary for boot logs and `run-once tenant-check`. */
 export function describeTenant(): string {
   const r = (x: RegExp | null) => (x ? `/${x.source}/i` : '—');
   return `sources=${[...enabled].join(',')} account include=${r(accountInclude)} exclude=${r(accountExclude)} `
-       + `ia-affiliate include=${r(affiliateInclude)} exclude=${r(affiliateExclude)}`;
+       + `ia-affiliate include=${r(affiliateInclude)} exclude=${r(affiliateExclude)} `
+       + `default-partner=${defaultPartnerCode ?? '—'} allow-all=${env.TENANT_ALLOW_ALL}`;
 }
