@@ -301,7 +301,12 @@ export default function FilterBar({ options }: Props) {
   const view = pathname.split('/').filter(Boolean).pop() ?? 'campaign';
   const showCountry = view === 'country';
   const showDevice  = view === 'device';
-  const showStatus  = view !== 'country' && view !== 'device' && view !== 'site';
+  // The Outbrain Hourly view is account-level (outbrain_marketer_hourly has no
+  // campaign, status or GD grain), so Status and GD cannot apply there and are
+  // hidden rather than shown as if they did.
+  const obHourly    = view === 'hourly' && (sp.get('source') ?? 'all') === 'outbrain';
+  const showStatus  = view !== 'country' && view !== 'device' && view !== 'site' && !obHourly;
+  const showGd      = !obHourly;
 
   const [from,       setFrom]       = useState(sp.get('from')        ?? daysAgo(13));
   const [to,         setTo]         = useState(sp.get('to')          ?? today());
@@ -351,11 +356,11 @@ export default function FilterBar({ options }: Props) {
     if (showCountry && countries.length > 0) q.set('country', countries.join(','));
     if (showDevice  && device)               q.set('device',  device);
     if (showStatus  && statuses.length > 0)  q.set('status',  statuses.join(','));
-    if (gds.length > 0)         q.set('gd',     gds.join(','));
+    if (showGd && gds.length > 0) q.set('gd',     gds.join(','));
     if (source && source !== 'all') q.set('source', source);
     if (feed && feed !== 'all')     q.set('feed',   feed);
     startTransition(() => router.push(`${pathname}?${q}`));
-  }, [from, to, accountIds, campaignIds, countries, device, statuses, gds, source, feed, pathname, router, showCountry, showDevice, showStatus]);
+  }, [from, to, accountIds, campaignIds, countries, device, statuses, gds, source, feed, pathname, router, showCountry, showDevice, showStatus, showGd]);
 
   // Date range applies immediately (presets and custom Apply both land here).
   const handleDateApply = useCallback((f: string, t: string) => {
@@ -578,7 +583,7 @@ export default function FilterBar({ options }: Props) {
       )}
 
       {/* GD param — search-and-select multi */}
-      {options.gds.length > 0 && (
+      {showGd && options.gds.length > 0 && (
         <SearchableMultiSelect
           items={options.gds.map(g => ({ key: g.gd_param, label: g.gd_param }))}
           selected={gds}

@@ -60,18 +60,29 @@ export default async function DashboardShell({ view, searchParams, note }: Props
 
   const obSource = searchParams.source === 'outbrain';
   const obCampFiltered = obSource && !!searchParams.campaign_id;
+  // DDC-specific wording only where this deployment actually has a DDC
+  // account (Joe's does not); the generic Outbrain facts apply everywhere.
+  const hasDdc = options.accounts.some(a => a.partner_code === 'ddc');
   const outbrainDetailNote =
     obSource && view === 'device'
       // Outbrain exposes no device-level COST, but DDC's hourly feed carries
       // device, so revenue can be split even though spend cannot.
-      ? 'Revenue is split by device from DDC. Outbrain does not expose device-level cost, so spend shows as 0 here — use the Campaign tab for spend. Device data covers roughly the last 3 days, which is how far back DDC\'s hourly feed goes.'
+      ? (hasDdc
+          ? 'Revenue is split by device from DDC. Outbrain does not expose device-level cost, so spend shows as 0 here — use the Campaign tab for spend. Device data covers roughly the last 3 days, which is how far back DDC\'s hourly feed goes.'
+          : 'Outbrain does not expose device-level cost, and Image Advantage does not report device, so this tab has nothing to show under the Outbrain filter — use the Campaign tab.')
       : obSource && view === 'hourly'
         ? (searchParams.campaign_id
-            ? 'Outbrain hourly cost is account-level only — the campaign filter is not applied. Clear the campaign filter to see the hourly breakdown.'
+            ? 'Outbrain hourly cost is account-level only — the campaign filter is not applied here, and the table is empty rather than showing daily totals as hours. Clear the campaign filter to see the account-level hourly breakdown.'
             // DDC now has a real hourly feed, but only for a rolling ~3 days.
             // Older days hold daily totals, which would otherwise all land at
             // hour 0, so they are excluded here rather than shown falsely.
-            : 'DDC revenue is shown hourly for roughly the last 3 days, which is how far back DDC\'s hourly feed goes. Earlier days are daily totals and are not split by hour — use the Campaign or Daily tab for those.')
+            : (hasDdc
+                ? 'Account-level Outbrain cost per hour. DDC revenue is shown hourly for roughly the last 3 days, which is how far back DDC\'s hourly feed goes; earlier days are daily totals and are not split by hour — use the Campaign or Daily tab for those. Status and GD filters do not apply at account level.'
+                : 'Account-level Outbrain cost per hour. Revenue partners report Outbrain revenue by day, not by hour, so revenue is not split here — use the Campaign or Daily tab. Status and GD filters do not apply at account level.'))
+        : !obSource && view === 'hourly' && searchParams.source !== 'taboola'
+          // Under All Sources the MV's Outbrain rows are daily totals stamped at
+          // 00:00; they are excluded here rather than shown as an hour-0 spike.
+          ? 'Hourly shows Taboola-side data only: Outbrain cost and revenue are reported by day, not by hour. Select Traffic Source = Outbrain for account-level Outbrain hours, or use the Daily tab for both together.'
         : obCampFiltered && (view === 'country' || view === 'site')
           ? `Outbrain reports ${view === 'country' ? 'country' : 'publisher/site'} at the account level — the campaign filter is not applied to these figures. Showing all spend for the selected account(s).`
           : undefined;

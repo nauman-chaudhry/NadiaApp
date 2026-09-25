@@ -70,7 +70,12 @@ export async function fetchFilterOptions(token?: string): Promise<FilterOptions>
 
 export interface SyncStatus {
   last_sync_at: string | null;
-  sources: { name: string; latest_hour: string | null; last_fetched: string | null }[];
+  /** Per source: newest data hour, last write, and last SUCCESSFUL sync run. */
+  sources: { name: string; latest_hour: string | null; last_fetched: string | null; last_success?: string | null }[];
+  /** Sources this deployment runs (ENABLED_SOURCES). */
+  enabled_sources?: string[];
+  /** Enabled sources whose last successful run is older than their threshold. */
+  stale?: string[];
 }
 
 export async function fetchSyncStatus(token?: string): Promise<SyncStatus> {

@@ -94,13 +94,29 @@ app.get('/api/sync-runs/latest', async (_req, res, next) => {
 });
 
 // ---------- Sync status — per-source freshness for the "last synced" bar ----------
+// Sources this deployment runs — mirrors ENABLED_SOURCES without importing
+// config/tenant.ts (which enforces worker-only tenancy rules at import time).
+const ENABLED_SOURCES = env.ENABLED_SOURCES.split(',').map(s => s.trim()).filter(Boolean);
+// Hours since the last SUCCESSFUL run before a source counts as stale. All five
+// have hourly jobs now (DDC since 2026-09-09).
+const STALE_AFTER_H: Record<string, number> = { taboola: 3, outbrain: 3, codefuel: 3, image_advantage: 3, ddc: 3 };
+
 app.get('/api/sync-status', async (_req, res, next) => {
   try {
-    const [overall, sources] = await Promise.all([
-      // Most recent successful sync across all sources
+    const [overall, lastOk, sources] = await Promise.all([
+      // Most recent successful sync across all sources (kept for compatibility;
+      // the UI now judges freshness per source — see `stale` below).
       query<{ finished_at: string }>(
         `SELECT MAX(finished_at) AS finished_at FROM sync_runs WHERE status = 'ok'`,
       ),
+      // Last SUCCESSFUL run per source. A source that fails every hour keeps
+      // writing sync_runs rows, so MAX(fetched_at)/MAX(finished_at) over all
+      // rows would look busy while producing nothing (2026-09-17 outage).
+      query<{ source: string; last_success: string | null }>(
+        `SELECT source, MAX(finished_at) FILTER (WHERE status = 'ok') AS last_success
+           FROM sync_runs WHERE source = ANY($1::text[]) GROUP BY source`,
+        [ENABLED_SOURCES],
+      ).then(rows => Object.fromEntries(rows.map(r => [r.source, r.last_success]))),
       // Latest hour_utc and fetched_at per partner
       query<{ source: string; latest_hour: string; last_fetched: string }>(
         `SELECT 'taboola' AS source,
@@ -124,16 +140,34 @@ app.get('/api/sync-status', async (_req, res, next) => {
                 MAX(p.hour_utc),
                 MAX(p.fetched_at)
            FROM partner_stats_hourly p
-           JOIN client_partners c ON c.id = p.client_partner_id AND c.code = 'ddc'`,
+           JOIN client_partners c ON c.id = p.client_partner_id AND c.code = 'ddc'
+         UNION ALL
+         -- Outbrain cost was missing from this list entirely, so a stalled
+         -- Outbrain sync never showed here (review 2026-09-24, finding 8).
+         SELECT 'outbrain',
+                MAX(hour_utc),
+                MAX(fetched_at)
+           FROM outbrain_marketer_hourly`,
       ),
     ]);
+    const now = Date.now();
+    const stale = ENABLED_SOURCES.filter(s => {
+      const at = lastOk[s];
+      const limitH = STALE_AFTER_H[s] ?? 3;
+      return !at || now - new Date(at).getTime() > limitH * 3_600_000;
+    });
     res.json({
       last_sync_at: overall[0]?.finished_at ?? null,
-      sources: sources.map(s => ({
-        name:         s.source,
-        latest_hour:  s.latest_hour,
-        last_fetched: s.last_fetched,
-      })),
+      enabled_sources: ENABLED_SOURCES,
+      stale,
+      sources: sources
+        .filter(s => ENABLED_SOURCES.includes(s.source))
+        .map(s => ({
+          name:         s.source,
+          latest_hour:  s.latest_hour,
+          last_fetched: s.last_fetched,
+          last_success: lastOk[s.source] ?? null,
+        })),
     });
   } catch (err) {
     next(err);
@@ -604,6 +638,15 @@ function buildStatsSql(p: z.infer<typeof statsQuerySchema>): { sql: string; args
                  SUM(conversions) AS conversions, SUM(${ADC}) AS ad_clicks,
                  SUM(${SES}) AS sessions
           FROM joined_stats_hourly ${mvWhere}
+            -- Outbrain rows in the MV are DAILY totals stamped at 00:00. Under
+            -- "All Traffic Sources" (or an Outbrain campaign filter, which
+            -- also lands here) they used to pile a whole day's Outbrain spend
+            -- and revenue into hour 0 and show it as measured hourly
+            -- performance (review 2026-09-24, finding 7). The MV-backed
+            -- Hourly tab is therefore Taboola-side only; genuine account-level
+            -- Outbrain hours come from the source=outbrain branch above, and
+            -- the UI says so.
+            AND source_platform IS DISTINCT FROM 'Outbrain'
           GROUP BY EXTRACT(HOUR FROM hour_utc)
         ) d ON d.hour = h.hour
         ORDER BY h.hour`,

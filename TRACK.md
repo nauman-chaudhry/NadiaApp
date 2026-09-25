@@ -2394,3 +2394,23 @@ revenue, flux all equal; 0 orphan rows with a NULL account before and after). Jo
 0 rows. Also: onboarding for a single-partner tenant no longer depends on remembering to tag —
 `TENANT_DEFAULT_PARTNER` (batch B) tags on discovery, and 050 is the safety net if it is unset.
 **Commit:** below.
+
+### 2026-09-25 — Frontend/API semantics from the critical review (findings 7, 8 + product notes)
+**Tabs keep filters.** `NavTabs` now carries the query string across tabs (dates, account, source,
+feed, campaign, status, GD), dropping only the tab-specific `country`/`device` params; wrapped in
+`Suspense` in the layout. Switching Campaign → Ads no longer resets the comparison.
+**Hourly is honest.** The MV-backed Hourly view (All Sources, Taboola, or Outbrain + campaign filter)
+now excludes the MV's Outbrain rows, which are daily totals stamped at 00:00 and used to appear as
+an hour-0 spike. Notes say so and point at Traffic Source = Outbrain (account-level hours) or the
+Daily tab. Under Outbrain Hourly the Status and GD controls are hidden (account-level data cannot
+honour them). Verified locally over 7 days: all-sources hour-0 share of spend dropped from the
+inflated figure to Taboola's normal share; source=outbrain unchanged.
+**Freshness per source.** `/api/sync-status` now returns `enabled_sources`, per-source
+`last_success` (last run with status ok, from `sync_runs`) and `stale` (> 3 h), and includes
+Outbrain, which was missing entirely. The header shows the WORST enabled source and names stale
+ones ("… — Outbrain cost behind"); the tooltip lists every source. A healthy metadata tick can no
+longer make a 17-hour Outbrain outage look fresh.
+**Tenant-aware notes.** DDC-specific explanations render only where a DDC account exists.
+**Not done (noted):** server default dates are UTC while browser presets use local dates; FilterBar
+does not resync state on navigation. Both minor; logged for later.
+**Commit:** below.
