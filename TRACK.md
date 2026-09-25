@@ -2425,3 +2425,22 @@ to the review. **Deploy needed (Nadia): worker + API + frontend together** — t
 `SUPABASE_URL`/`SUPABASE_ANON_KEY` and the worker requires the two `TENANT_*` rules, or they exit at
 boot; the frontend sends the token the API now demands.
 **Commit:** below.
+
+### 2026-09-25 — Nadia's services deployed with tenancy + API auth; Joe's accounts pruned from her DB
+**Deploy verified live (after the user deployed worker, API and frontend together):** `/health` 200;
+every `/api/*` route → `401 Unauthorized` without a session token (proves the new API build);
+`/dashboard/*` → 307 to `/login` when logged out; user confirmed the dashboard works after login.
+Worker: every hourly job ran on schedule through the deploy (Codefuel 08:15, IA 08:20/09:20,
+Outbrain 08:25–08:27, DDC 08:45, Taboola 09:05 — all `ok`); the Outbrain token was reused from the
+DB store (no login). User confirmed the worker logs the tenant rules.
+**Prune applied:** `tenant-prune --apply` with Nadia's rules deleted the **11** empty Joe accounts
+(`SBH_rev_01..05`, `Revlogic Media_4945 - Network`, `TDG - Revlogic Media_4945 - Adv1..Adv 5`) from
+her `ad_accounts`; 0 remain, 34 accounts total. They cannot come back: the worker's exclude rule
+skips them at discovery.
+**Found while checking:** DDC's HOURLY feed (`yss_current_day`) has returned 0 rows every tick since
+~09-21 — before the domain switch — while the daily report works (09-23 = $16.35 on
+find247library.com). The 10:00-London client CSV has therefore refused to send for 4 mornings
+(09-22..09-25, "no rows — not sending an empty file", by design). Not a code defect; Nadia asked
+to raise it with DDC. Dashboard daily/campaign figures unaffected; Hourly/Device for DDC empty.
+**Joe's Render/Vercel:** deliberately left for later (user).
+**Commit:** below.
