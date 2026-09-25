@@ -2461,3 +2461,13 @@ hourly cost/revenue jobs fill it as soon as campaigns exist. `app_users` has 1 r
 checklist updated with both URLs. Still open: Joe's email + admin roles, ads.txt renames, Outbrain
 password decision, acceptance gate once he trades.
 **Commit:** below.
+
+### 2026-09-25 — Joe: admin role set, ads.txt verified on all five domains
+- `app_users` on Joe's DB: `nauman1029@gmail.com` → `admin` (first login was 17:36 UTC — before the
+  17:45 backfill, which is why the account dropdown looked empty; a reload shows the 11 accounts).
+  `nadia777solutions@gmail.com` is not yet a user on Joe's project — must be invited in Supabase
+  Auth (signups are off); role set after her first login.
+- ads.txt: all five of Joe's domains now return 200 with the correct `subdomain=flux.<domain>` line.
+- Outbrain password rotation: operator decided NOT to rotate (no second key available; shared
+  credential stays as is).
+**Commit:** below.
