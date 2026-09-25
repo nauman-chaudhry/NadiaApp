@@ -19,8 +19,8 @@ database is empty until his campaigns run. Step 6 below is the acceptance gate.
 | `DATABASE_URL` (Joe) | in `backend/.env.joe` (gitignored) |
 | `NEXT_PUBLIC_SUPABASE_URL` / `SUPABASE_URL` | `https://glrxjjnaogkuahhafgth.supabase.co` |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` / `SUPABASE_ANON_KEY` | the `sb_publishable_…` key (in `backend/.env.joe`) |
-| Joe's API URL (Render) | `<JOE_API_URL>` |
-| Joe's dashboard URL (Vercel) | `<JOE_VERCEL_URL>` |
+| Joe's API URL (Render) | `https://joeapi.onrender.com` |
+| Joe's dashboard URL (Vercel) | `https://joe-dashboard-two.vercel.app` |
 | Joe's login email | `<JOE_EMAIL>` |
 | Nadia's login email | `<NADIA_EMAIL>` (her usual) |
 | ads.txt | uploaded 2026-09-24 under the wrong name — Joe must rename each to `ads.txt`; then verify all five return 200 |
@@ -83,7 +83,7 @@ IMAGE_ADVANTAGE_PASSWORD=<same as Nadia's>
 IMAGE_ADVANTAGE_ACCOUNT_ID=398
 SUPABASE_URL=https://glrxjjnaogkuahhafgth.supabase.co          # API
 SUPABASE_ANON_KEY=<sb_publishable_… key>                         # API
-CORS_ORIGIN=<JOE_VERCEL_URL>                                     # API
+CORS_ORIGIN=https://joe-dashboard-two.vercel.app                                     # API
 ENABLE_CRON=false                                                # API
 ENABLE_CRON=true                                                 # worker
 ```
@@ -107,7 +107,7 @@ cd backend && ENV_FILE=.env.joe npm run sync:once -- daily-backfill
 Root directory `frontend`. Environment:
 
 ```
-NEXT_PUBLIC_API_BASE=<JOE_API_URL>
+NEXT_PUBLIC_API_BASE=https://joeapi.onrender.com
 NEXT_PUBLIC_SUPABASE_URL=https://glrxjjnaogkuahhafgth.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=<sb_publishable_… key>
 NEXT_PUBLIC_APP_NAME=Revlogic Media
@@ -121,7 +121,7 @@ Functions region: `sin1` (matches Render Singapore).
 
 Authentication → Providers → Email: enabled, magic link on; **disable "Allow new users to sign up"**
 (the login form already sends `shouldCreateUser: false`; this closes the hosted side too). URL
-configuration: Site URL `<JOE_VERCEL_URL>`, redirect `<JOE_VERCEL_URL>/auth/callback`. Invite
+configuration: Site URL `https://joe-dashboard-two.vercel.app`, redirect `https://joe-dashboard-two.vercel.app/auth/callback`. Invite
 `<JOE_EMAIL>` and `<NADIA_EMAIL>`; after each has signed in once:
 
 ```sql
@@ -134,7 +134,7 @@ UPDATE app_users SET role = 'admin' WHERE email IN ('<JOE_EMAIL>', '<NADIA_EMAIL
 
 - Joe's `/api/filters/options` (logged in) lists only `SBH_rev_01..05` and the six
   `Revlogic Media_4945` accounts, all badged **IA**; Nadia's lists none of them.
-- `curl <JOE_API_URL>/api/sync-status` without a token → 401.
+- `curl https://joeapi.onrender.com/api/sync-status` without a token → 401.
 - Joe's `sync_runs` shows taboola/outbrain/image_advantage `ok`; no codefuel/ddc rows.
 - ads.txt: `curl -I https://<domain>/ads.txt` → 200 on all five.
 

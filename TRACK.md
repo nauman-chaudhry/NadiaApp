@@ -2444,3 +2444,20 @@ find247library.com). The 10:00-London client CSV has therefore refused to send f
 to raise it with DDC. Dashboard daily/campaign figures unaffected; Hourly/Device for DDC empty.
 **Joe's Render/Vercel:** deliberately left for later (user).
 **Commit:** below.
+
+### 2026-09-25 — Joe's stack live: API `https://joeapi.onrender.com`, dashboard `https://joe-dashboard-two.vercel.app`
+**Verified live:** API `/health` 200, `/api/*` → 401 without a token, CORS already set to the Vercel
+URL; frontend `/login` 200. Worker running the hourly jobs on schedule (all `ok`, 0 rows) and it
+had already done its single Outbrain login and stored the token in Joe's `app_settings`.
+**First backfill run by hand** (`ENV_FILE=.env.joe … daily-backfill`): 17 steps ok, 1 transient
+failure on `taboola-metadata`, which succeeded on an immediate rerun. Result: **11 accounts**
+registered (SBH_rev_01..05; Revlogic Media_4945 network + Adv1..Adv 5), **all auto-tagged
+`image_advantage`** by `TENANT_DEFAULT_PARTNER`. Codefuel and DDC steps skipped by
+`ENABLED_SOURCES`. Tenant filter logs confirm only Joe's marketers/affiliates were requested.
+**Why the dashboard is empty:** Joe has **0 campaigns** on every account (Taboola and Outbrain), so
+there is no cost, no revenue and an empty MV. Nothing to fix; the 2-hourly metadata job and the
+hourly cost/revenue jobs fill it as soon as campaigns exist. `app_users` has 1 row (a first login).
+**Local files:** `backend/.env.joe.api` / `.env.joe.worker` (gitignored) hold the uploaded env sets;
+checklist updated with both URLs. Still open: Joe's email + admin roles, ads.txt renames, Outbrain
+password decision, acceptance gate once he trades.
+**Commit:** below.
