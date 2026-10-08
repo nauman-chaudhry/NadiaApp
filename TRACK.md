@@ -2507,3 +2507,19 @@ still works (identical column sets). Taboola has no live ads in the window (upst
 the `ads.url` path is exercised only by compilation.
 **Deploy:** API + frontend (no migration, no worker change).
 **Commit:** below.
+
+### 2026-10-08 — Column chooser + Ads URL column verified LIVE (deployed by the user)
+Verified on `https://nadia-dashboard-two.vercel.app` with a logged-in session in Orca's embedded
+browser (the API is auth-only, so no unauthenticated check can see rows):
+- Ads tab, Outbrain, 24 Sep–8 Oct: header row includes **URL**; **793 clickable ad URLs** rendered
+  from the live API; synthetic rows blank.
+- **Columns** button present; dialog renders with the three groups and counts (Dimensions 6/6,
+  Traffic platform (cost) 8/8, Revenue partner 9/9), "Total 23 of 23 selected", Ad Title locked.
+- Unticked Impressions → Apply: header dropped Impressions, button reads "Columns (22/23)",
+  `localStorage["ssm-colvis-ads"] = ["impressions"]`. **Reload: still hidden** (persistence works).
+  Restored with Select all → Apply (23 headers, storage cleared).
+- Observation: Orca's synthetic `click` on the Columns button did not open the dialog while the
+  page's own `.click()` did; real mouse clicks are the normal path and the DOM behaviour is
+  correct. Not treated as a defect; noted in case it recurs under automation.
+- No console errors on the page.
+**Commit:** below (docs only).
