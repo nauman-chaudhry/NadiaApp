@@ -245,6 +245,26 @@ function idCol(id: string, header: string, cat: ColCategory): ColumnDef<StatsRow
     ),
   };
 }
+// Clickable, truncated URL (ad landing pages). Opens in a new tab; the full
+// URL is in the tooltip and in the Excel export.
+function urlCol(id: string, header: string, cat: ColCategory, maxW = 260): ColumnDef<StatsRow> {
+  return {
+    accessorKey: id, header,
+    meta: { category: cat },
+    cell: ({ getValue }) => {
+      const v = String(getValue() ?? '');
+      if (!v) return <span className="text-gray-400">—</span>;
+      return (
+        <a href={v} target="_blank" rel="noopener noreferrer" title={v}
+          onClick={e => e.stopPropagation()}
+          style={{ maxWidth: maxW, display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+          className="text-teal-700 hover:underline text-xs">
+          {v.replace(/^https?:\/\//, '')}
+        </a>
+      );
+    },
+  };
+}
 
 // ─── Shared metric block ───────────────────────────────────────────────────────
 const TABOOLA_COLS: ColumnDef<StatsRow>[] = [
@@ -311,6 +331,7 @@ const VIEW_COLUMNS: Record<StatsView, ColumnDef<StatsRow>[]> = {
     txtCol('campaign_name', 'Campaign',    'dimension', 180),
     idCol('campaign_id',    'Campaign ID', 'dimension'),
     txtCol('gd_param',      'GD',          'dimension', 100),
+    urlCol('landing_url',   'URL',         'dimension'),
     ...TABOOLA_COLS, ...PARTNER_COLS,
   ],
   site: [
@@ -397,6 +418,7 @@ const EXPORT_COLUMNS: Record<StatsView, ExpCol[]> = {
     { key: 'campaign_name', header: 'Campaign', type: 'text' },
     { key: 'campaign_id', header: 'Campaign ID', type: 'text' },
     { key: 'gd_param', header: 'GD', type: 'text' },
+    { key: 'landing_url', header: 'URL', type: 'text' },
     { key: 'impressions', header: 'Impressions', type: 'int' },
     { key: 'clicks', header: 'Clicks', type: 'int' },
     { key: 'ctr_pct', header: 'CTR%', type: 'pct' },
@@ -430,7 +452,7 @@ const round2 = (n: number) => Math.round((Number(n) || 0) * 100) / 100;
 // view's dimension keys. Empty list = view has no searchable dimensions.
 const SEARCH_KEYS: Record<StatsView, string[]> = {
   campaign: ['campaign_name', 'campaign_id', 'ad_account_name'],
-  ads:      ['ad_title', 'taboola_ad_id', 'campaign_name', 'campaign_id', 'gd_param'],
+  ads:      ['ad_title', 'taboola_ad_id', 'campaign_name', 'campaign_id', 'gd_param', 'landing_url'],
   site:     ['site'],
   country:  ['country'],
   device:   ['device'],
@@ -464,9 +486,12 @@ function expValue(row: StatsRow, col: ExpCol): string | number {
 
 async function exportXlsx(
   view: StatsView, rows: StatsRow[], totals: Record<string, number>, from: string, to: string,
+  hidden: Set<string> = new Set(),
 ) {
   const XLSX = await import('xlsx');
-  const cols = EXPORT_COLUMNS[view];
+  // Export what is on screen: columns hidden via "Columns" are left out too
+  // (the first/dimension column is never hidden).
+  const cols = EXPORT_COLUMNS[view].filter((c, i) => i === 0 || !hidden.has(c.key));
   const headers = cols.map(c => c.header);
 
   const body = rows.map(r => {
@@ -530,6 +555,102 @@ function TotalsRow({
   );
 }
 
+// ─── Column chooser ("Customize columns") ───────────────────────────────────
+// Modelled on the Outbrain Amplify dialog the client showed (2026-10-04):
+// search, grouped sections with "n / m" counts, checkboxes, Select All, and
+// Apply makes it the default for that tab (persisted per view in localStorage,
+// like column order). The first column (the row's dimension) is always shown.
+const GROUP_LABEL: Record<ColCategory, string> = {
+  dimension: 'Dimensions',
+  taboola:   'Traffic platform (cost)',
+  partner:   'Revenue partner',
+};
+
+function ColumnChooser({
+  columns, hidden, onApply, onClose,
+}: {
+  columns: ColumnDef<StatsRow>[];
+  hidden: Set<string>;
+  onApply: (hidden: Set<string>) => void;
+  onClose: () => void;
+}) {
+  const [draft, setDraft] = useState<Set<string>>(new Set(hidden));
+  const [search, setSearch] = useState('');
+  const items = columns.map((c, i) => ({
+    key: (c as any).accessorKey as string,
+    label: String(c.header ?? ''),
+    cat: ((c.meta as any)?.category ?? 'dimension') as ColCategory,
+    locked: i === 0,
+  }));
+  const q = search.trim().toLowerCase();
+  const visibleItems = q ? items.filter(i => i.label.toLowerCase().includes(q)) : items;
+  const groups = (['dimension', 'taboola', 'partner'] as ColCategory[])
+    .map(cat => ({ cat, all: items.filter(i => i.cat === cat), shown: visibleItems.filter(i => i.cat === cat) }))
+    .filter(g => g.shown.length > 0);
+  const selectedCount = items.filter(i => !draft.has(i.key)).length;
+  const toggle = (key: string) => setDraft(d => { const n = new Set(d); n.has(key) ? n.delete(key) : n.add(key); return n; });
+  const setAll = (keys: string[], show: boolean) =>
+    setDraft(d => { const n = new Set(d); keys.forEach(k => (show ? n.delete(k) : n.add(k))); return n; });
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-start justify-center pt-16 bg-black/30" onMouseDown={onClose}>
+      <div className="bg-white rounded shadow-xl w-[440px] max-h-[80vh] flex flex-col text-sm" onMouseDown={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-4 py-2.5 bg-teal-700 text-white rounded-t">
+          <span className="font-semibold tracking-wide text-xs uppercase">Customize columns</span>
+          <button onClick={onClose} className="text-white/80 hover:text-white text-base leading-none">×</button>
+        </div>
+        <div className="p-3 border-b border-gray-100">
+          <input autoFocus type="text" value={search} onChange={e => setSearch(e.target.value)}
+            placeholder="Search columns…"
+            className="w-full h-8 px-2 text-sm rounded border border-gray-300 focus:outline-none focus:ring-1 focus:ring-teal-600" />
+        </div>
+        <div className="flex items-center justify-between px-4 py-1.5 border-b border-gray-100 text-xs">
+          <span>
+            <button onClick={() => setAll(items.filter(i => !i.locked).map(i => i.key), true)} className="text-teal-700 hover:underline">Select all</button>
+            <span className="text-gray-300 mx-2">|</span>
+            <button onClick={() => setAll(items.filter(i => !i.locked).map(i => i.key), false)} className="text-teal-700 hover:underline">Clear</button>
+          </span>
+          <span className="text-gray-600">Total <b>{selectedCount}</b> of {items.length} selected</span>
+        </div>
+        <div className="overflow-y-auto flex-1 px-2 py-1">
+          {groups.map(g => {
+            const shownCount = g.all.filter(i => !draft.has(i.key)).length;
+            const allKeys = g.all.filter(i => !i.locked).map(i => i.key);
+            const allOn = allKeys.every(k => !draft.has(k));
+            return (
+              <div key={g.cat} className="mb-2">
+                <label className="flex items-center gap-2 px-2 py-1.5 bg-gray-50 rounded cursor-pointer select-none">
+                  <input type="checkbox" className="accent-teal-600" checked={allOn}
+                    onChange={() => setAll(allKeys, !allOn)} />
+                  <span className="font-semibold text-xs uppercase tracking-wide text-gray-700">
+                    {GROUP_LABEL[g.cat]} — {shownCount} / {g.all.length}
+                  </span>
+                </label>
+                {g.shown.map(i => (
+                  <label key={i.key} className={`flex items-center gap-2 px-6 py-1.5 rounded select-none ${i.locked ? 'text-gray-400' : 'hover:bg-gray-50 cursor-pointer'}`}>
+                    <input type="checkbox" className="accent-teal-600" checked={!draft.has(i.key)} disabled={i.locked}
+                      onChange={() => toggle(i.key)} />
+                    <span className={draft.has(i.key) ? 'text-gray-700' : 'text-teal-800'}>{i.label}</span>
+                    {i.locked && <span className="ml-auto text-[10px] text-gray-400">always shown</span>}
+                  </label>
+                ))}
+              </div>
+            );
+          })}
+          {groups.length === 0 && <div className="px-3 py-6 text-center text-gray-400">No matching columns</div>}
+        </div>
+        <div className="flex items-center justify-between gap-2 px-3 py-2 border-t border-gray-100">
+          <span className="text-[11px] text-amber-700">After applying, this becomes your default view for this tab.</span>
+          <span className="flex gap-2">
+            <button onClick={onClose} className="h-7 px-3 text-xs rounded border border-gray-300 text-gray-600 hover:bg-gray-50">Cancel</button>
+            <button onClick={() => onApply(draft)} className="h-7 px-3 text-xs rounded bg-teal-600 text-white hover:bg-teal-700 font-medium">Apply</button>
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Component ─────────────────────────────────────────────────────────────────
 interface Props {
   view: StatsView;
@@ -583,12 +704,38 @@ export default function StatsTable({ view, data, totals, accounts, from, to }: P
     });
   };
 
-  // Columns in display order — used by the totals row so it matches the table.
+  // ── Column visibility ("Customize columns") ──────────────────────────────────
+  // Hidden column keys per view, persisted like column order. The first column
+  // is never hidden. Unknown keys from an older build are ignored.
+  const [hiddenCols, setHiddenCols] = useState<Set<string>>(new Set());
+  const [chooserOpen, setChooserOpen] = useState(false);
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(`ssm-colvis-${view}`);
+      const arr = saved ? (JSON.parse(saved) as string[]) : [];
+      setHiddenCols(new Set(Array.isArray(arr) ? arr.filter(k => defaultOrder.includes(k) && k !== defaultOrder[0]) : []));
+    } catch { setHiddenCols(new Set()); }
+  }, [view, defaultOrder]);
+  const applyHidden = (next: Set<string>) => {
+    next.delete(defaultOrder[0]);
+    setHiddenCols(new Set(next));
+    try { localStorage.setItem(`ssm-colvis-${view}`, JSON.stringify([...next])); } catch {}
+    setChooserOpen(false);
+  };
+  const columnVisibility = useMemo(
+    () => Object.fromEntries(defaultOrder.map(k => [k, !hiddenCols.has(k)])),
+    [defaultOrder, hiddenCols],
+  );
+  const visibleCount = defaultOrder.length - hiddenCols.size;
+
+  // Columns in display order, hidden ones removed — used by the totals row so
+  // it matches the table.
   const orderedColumns = useMemo(
     () => columnOrder
+      .filter(k => !hiddenCols.has(k))
       .map(k => columns.find(c => (c as any).accessorKey === k))
       .filter((c): c is ColumnDef<StatsRow> => c !== undefined),
-    [columnOrder, columns],
+    [columnOrder, columns, hiddenCols],
   );
 
   // ── Frozen header rows ───────────────────────────────────────────────────────
@@ -684,7 +831,7 @@ export default function StatsTable({ view, data, totals, accounts, from, to }: P
   const table = useReactTable({
     data: filteredData,
     columns,
-    state: { sorting, columnOrder },
+    state: { sorting, columnOrder, columnVisibility },
     onSortingChange: setSorting,
     onColumnOrderChange: setColumnOrder,
     getCoreRowModel: getCoreRowModel(),
@@ -751,7 +898,7 @@ export default function StatsTable({ view, data, totals, accounts, from, to }: P
   }
 
   const doExport = () =>
-    exportXlsx(view, filteredData, effectiveTotals ?? {}, from ?? '', to ?? '');
+    exportXlsx(view, filteredData, effectiveTotals ?? {}, from ?? '', to ?? '', hiddenCols);
 
   // ── Toolbar: search + clear-all/count (left) + Excel export (right). ──
   const anyRawSearch = search.trim() !== '';
@@ -784,10 +931,17 @@ export default function StatsTable({ view, data, totals, accounts, from, to }: P
           </span>
         </>
       )}
-      <button onClick={doExport} title="Download the visible rows as an .xlsx file"
-        className="ml-auto h-7 px-3 text-xs rounded border border-teal-600 text-teal-700 hover:bg-teal-50 font-medium flex items-center gap-1">
+      <button onClick={() => setChooserOpen(true)} title="Choose which columns to show on this tab"
+        className="ml-auto h-7 px-3 text-xs rounded border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium flex items-center gap-1">
+        <span>☷</span> Columns{hiddenCols.size > 0 ? ` (${visibleCount}/${defaultOrder.length})` : ''}
+      </button>
+      <button onClick={doExport} title="Download the visible rows and columns as an .xlsx file"
+        className="h-7 px-3 text-xs rounded border border-teal-600 text-teal-700 hover:bg-teal-50 font-medium flex items-center gap-1">
         <span>⭳</span> Export .xlsx
       </button>
+      {chooserOpen && (
+        <ColumnChooser columns={columns} hidden={hiddenCols} onApply={applyHidden} onClose={() => setChooserOpen(false)} />
+      )}
     </div>
   );
 
@@ -862,7 +1016,7 @@ export default function StatsTable({ view, data, totals, accounts, from, to }: P
                 <Fragment key={`${group.accountName}-${gi}`}>
                   {/* ── Account group header row ── */}
                   <tr style={{ background: 'rgba(59,130,246,0.06)' }} className="border-t border-blue-100">
-                    <td colSpan={columns.length} className="px-3 py-1.5">
+                    <td colSpan={visibleCount} className="px-3 py-1.5">
                       <span className="font-semibold text-gray-800 text-xs">{group.accountName}</span>
                       {group.partnerCode && ACCT_BADGE[group.partnerCode] && (
                         <span className={`ml-2 text-xs font-semibold px-1 py-0.5 rounded ${ACCT_BADGE[group.partnerCode].bg}`}>
@@ -902,7 +1056,7 @@ export default function StatsTable({ view, data, totals, accounts, from, to }: P
           }
           {filteredData.length === 0 && (
             <tr>
-              <td colSpan={columns.length} className="px-3 py-4 text-center text-gray-400 text-sm">
+              <td colSpan={visibleCount} className="px-3 py-4 text-center text-gray-400 text-sm">
                 No rows match the current filters.{' '}
                 <button onClick={clearAllFilters} className="text-teal-600 hover:underline">Clear filters</button>
               </td>

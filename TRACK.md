@@ -2485,3 +2485,25 @@ password decision, acceptance gate once he trades.
 - Worth doing on Nadia's own project too: check Project Settings → Authentication → SMTP; if it is
   on the built-in mailer, her magic-link logins share the same 2/hour limit.
 **Commit:** below.
+
+### 2026-10-08 — Client requests: "Customize columns" per tab + landing URL on the Ads report
+**Client (2026-10-04, with a screen recording of Outbrain Amplify's dialog):** (1) choose which
+columns show on each report; (2) a URL column on the Ads report.
+**1. Column chooser (`StatsTable.tsx`).** New "Columns" button next to Export opens a dialog modelled
+on the recording: search, grouped sections (Dimensions / Traffic platform (cost) / Revenue partner)
+with "n / m" counts and group toggles, Select all / Clear, per-column checkboxes, Apply. Hidden
+columns persist per tab in `localStorage` (`ssm-colvis-<view>`, same mechanism as column order), so
+Apply makes it the default view for that tab on that browser. The first column (the row's
+dimension) is always shown. TanStack `columnVisibility` drives the table; the totals row, group
+header `colSpan` and the Excel export all follow the visible set.
+**2. Landing URL on Ads.** API: every branch of both Ads builders now ends with `landing_url`
+(Taboola real rows `ads.url`, Outbrain real rows `outbrain_ad_daily.landing_url` via `ob_cost_all`,
+`NULL` on every synthetic row — the UNIONs are positional, so all 11 branches were extended).
+Frontend: `urlCol` renders a truncated clickable link (new tab, full URL in tooltip), added to the
+Ads columns, the Excel export and the search keys.
+**Verified:** backend + frontend `tsc` clean. Local API, 14-day window: all / taboola / outbrain
+→ 200; **788 of 788 real ad rows carry a URL, 0 of 14 synthetic rows do**; the all-sources concat
+still works (identical column sets). Taboola has no live ads in the window (upstream outage), so
+the `ads.url` path is exercised only by compilation.
+**Deploy:** API + frontend (no migration, no worker change).
+**Commit:** below.

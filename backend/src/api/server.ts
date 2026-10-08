@@ -1341,7 +1341,10 @@ function buildStatsSql(p: z.infer<typeof statsQuerySchema>): { sql: string; args
           CASE WHEN b.ad_clicks=0 THEN 0 ELSE b.spent/b.ad_clicks END             AS yahoo_cpa,
           b.conversions - b.ad_clicks                                             AS conversion_scrub,
           CASE WHEN b.conversions=0 THEN 0
-               ELSE (b.conversions - b.ad_clicks)*100.0/b.conversions END         AS scrub_rate_pct
+               ELSE (b.conversions - b.ad_clicks)*100.0/b.conversions END         AS scrub_rate_pct,
+          -- Landing URL per ad (client request 2026-10-04). Every UNION branch
+          -- below appends the same column (NULL on synthetic rows).
+          b.landing_url
         FROM (
           SELECT
             -4::int AS ad_id,
@@ -1357,7 +1360,8 @@ function buildStatsSql(p: z.infer<typeof statsQuerySchema>): { sql: string; args
             COALESCE(c.impressions,0) AS impressions,
             COALESCE(c.clicks,0)      AS clicks,
             COALESCE(c.conversions,0) AS conversions,
-            COALESCE(c.spent,0)       AS spent
+            COALESCE(c.spent,0)       AS spent,
+            c.landing_url
           FROM ob_cost c
           LEFT JOIN cf_rep_link    cf  ON cf.link_key = c.promoted_link_id
           LEFT JOIN ia_link_rev    ial ON ial.link_uuid = c.promoted_link_uuid
@@ -1388,7 +1392,8 @@ function buildStatsSql(p: z.infer<typeof statsQuerySchema>): { sql: string; args
           CASE WHEN ia.revenue=0 THEN 0 ELSE 100 END                    AS margin_pct,
           ia.revenue                                                     AS profit,
           0::numeric AS yahoo_cpa, -ia.ad_clicks AS conversion_scrub,
-          0::numeric AS scrub_rate_pct
+          0::numeric AS scrub_rate_pct,
+          NULL::text AS landing_url
         FROM ia_camp_rev ia
         LEFT JOIN outbrain_campaigns oc2 ON oc2.campaign_id = ia.ob_camp_id
         WHERE (ia.revenue > 0 OR ia.sessions > 0)
@@ -1419,7 +1424,8 @@ function buildStatsSql(p: z.infer<typeof statsQuerySchema>): { sql: string; args
           CASE WHEN dc.revenue=0 THEN 0 ELSE 100 END                    AS margin_pct,
           dc.revenue                                                     AS profit,
           0::numeric AS yahoo_cpa, -dc.ad_clicks AS conversion_scrub,
-          0::numeric AS scrub_rate_pct
+          0::numeric AS scrub_rate_pct,
+          NULL::text AS landing_url
         FROM ddc_camp_rev dc
         LEFT JOIN outbrain_campaigns oc3 ON oc3.campaign_id = dc.ob_camp_id
         WHERE (dc.revenue > 0 OR dc.sessions > 0)
@@ -1450,7 +1456,8 @@ function buildStatsSql(p: z.infer<typeof statsQuerySchema>): { sql: string; args
           CASE WHEN cc.revenue=0 THEN 0 ELSE 100 END                     AS margin_pct,
           cc.revenue                                                     AS profit,
           0::numeric AS yahoo_cpa, -cc.ad_clicks AS conversion_scrub,
-          0::numeric AS scrub_rate_pct
+          0::numeric AS scrub_rate_pct,
+          NULL::text AS landing_url
         FROM cf_camp_only cc
         LEFT JOIN outbrain_campaigns oc5 ON oc5.campaign_id = cc.ob_camp_id
         WHERE (cc.revenue > 0 OR cc.sessions > 0)
@@ -1481,7 +1488,8 @@ function buildStatsSql(p: z.infer<typeof statsQuerySchema>): { sql: string; args
           CASE WHEN SUM(dl.revenue)=0 THEN 0 ELSE 100 END                AS margin_pct,
           SUM(dl.revenue)                                                AS profit,
           0::numeric AS yahoo_cpa, -SUM(dl.ad_clicks) AS conversion_scrub,
-          0::numeric AS scrub_rate_pct
+          0::numeric AS scrub_rate_pct,
+          NULL::text AS landing_url
         FROM ddc_link_rev dl
         JOIN outbrain_ad_links al2 ON al2.link_id = dl.link_uuid
         LEFT JOIN outbrain_campaigns oc4 ON oc4.campaign_id = al2.campaign_id
@@ -1519,7 +1527,8 @@ function buildStatsSql(p: z.infer<typeof statsQuerySchema>): { sql: string; args
           CASE WHEN t.revenue=0 THEN 0 ELSE 100 END                      AS margin_pct,
           t.revenue                                                      AS profit,
           0::numeric AS yahoo_cpa, -t.ad_clicks AS conversion_scrub,
-          0::numeric AS scrub_rate_pct
+          0::numeric AS scrub_rate_pct,
+          NULL::text AS landing_url
         FROM (
           SELECT COALESCE(SUM(x.revenue),0) AS revenue,
                  COALESCE(SUM(x.ad_clicks),0) AS ad_clicks,
@@ -1592,7 +1601,8 @@ function buildStatsSql(p: z.infer<typeof statsQuerySchema>): { sql: string; args
           CASE WHEN t.revenue=0 THEN 0 ELSE 100 END                      AS margin_pct,
           t.revenue                                                      AS profit,
           0::numeric AS yahoo_cpa, -t.ad_clicks AS conversion_scrub,
-          0::numeric AS scrub_rate_pct
+          0::numeric AS scrub_rate_pct,
+          NULL::text AS landing_url
         FROM (
           SELECT COALESCE(SUM(x.revenue),0) AS revenue,
                  COALESCE(SUM(x.ad_clicks),0) AS ad_clicks,
@@ -2423,7 +2433,9 @@ function buildStatsSql(p: z.infer<typeof statsQuerySchema>): { sql: string; args
         COALESCE(cs.conversions,0) - COALESCE(r.ad_clicks,0)         AS conversion_scrub,
         CASE WHEN COALESCE(cs.conversions,0) = 0 THEN 0
              ELSE (COALESCE(cs.conversions,0) - COALESCE(r.ad_clicks,0))
-                  * 100.0 / cs.conversions END                       AS scrub_rate_pct
+                  * 100.0 / cs.conversions END                       AS scrub_rate_pct,
+        -- Landing URL per ad (client request 2026-10-04); NULL on synthetic rows.
+        a.url                                                        AS landing_url
       FROM cf_rep r
       JOIN ads a           ON a.id   = r.ad_db_id
       JOIN campaigns c     ON c.id   = a.campaign_id
@@ -2483,7 +2495,8 @@ function buildStatsSql(p: z.infer<typeof statsQuerySchema>): { sql: string; args
         (CASE WHEN cov.has_cf THEN 0 ELSE COALESCE(cs.conversions,0) END) - ia.ad_clicks AS conversion_scrub,
         CASE WHEN (CASE WHEN cov.has_cf THEN 0 ELSE COALESCE(cs.conversions,0) END) = 0 THEN 0
              ELSE ((CASE WHEN cov.has_cf THEN 0 ELSE COALESCE(cs.conversions,0) END) - ia.ad_clicks)
-                  * 100.0 / (CASE WHEN cov.has_cf THEN 0 ELSE cs.conversions END) END AS scrub_rate_pct
+                  * 100.0 / (CASE WHEN cov.has_cf THEN 0 ELSE cs.conversions END) END AS scrub_rate_pct,
+        NULL::text                                                      AS landing_url
       FROM ia_camp ia
       LEFT JOIN campaigns c ON c.id = ia.campaign_db_id
       -- Unattributed IA revenue (campaign_ext_id resolves to neither a campaign
@@ -2535,7 +2548,8 @@ function buildStatsSql(p: z.infer<typeof statsQuerySchema>): { sql: string; args
         SUM(p.revenue)                                                  AS profit,
         0::numeric                                                      AS yahoo_cpa,
         0 - COALESCE(SUM(p.ad_clicks), 0)                              AS conversion_scrub,
-        0::numeric                                                      AS scrub_rate_pct
+        0::numeric                                                      AS scrub_rate_pct,
+        NULL::text                                                      AS landing_url
       FROM partner_stats_hourly p
       JOIN client_partners cp ON cp.id = p.client_partner_id AND cp.code = 'codefuel'
       -- Resolve the orphan's account (same rules as the MV) so the row respects
@@ -2606,7 +2620,8 @@ function buildStatsSql(p: z.infer<typeof statsQuerySchema>): { sql: string; args
         -COALESCE(SUM(cs.spent), 0)                                     AS profit,
         0::numeric                                                      AS yahoo_cpa,
         COALESCE(SUM(cs.conversions), 0)                               AS conversion_scrub,
-        CASE WHEN COALESCE(SUM(cs.conversions),0) = 0 THEN 0 ELSE 100 END AS scrub_rate_pct
+        CASE WHEN COALESCE(SUM(cs.conversions),0) = 0 THEN 0 ELSE 100 END AS scrub_rate_pct,
+        NULL::text                                                      AS landing_url
       FROM cs
       JOIN campaigns c     ON c.id   = cs.campaign_id
       JOIN ad_accounts acc ON acc.id = c.ad_account_id
