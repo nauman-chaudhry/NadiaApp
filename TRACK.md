@@ -2607,3 +2607,67 @@ following is run against production after deploy:
 **Deploy:** API + frontend together (the frontend requests `view=accounts`, which the deployed API
 would currently reject with a 400). No migration, no worker deploy.
 **Commit:** below.
+
+### 2026-10-14 — Accounts tab + Click Margin $ verified LIVE after deploy
+User deployed API + frontend. Verified against `https://nadia-dashboard-two.vercel.app` with a
+logged-in session in Chrome (the API is auth-only, so no unauthenticated check can see rows — the
+earlier curl probes confirmed only that `/health` is 200 and `/api/*` returns 401, which an OLD
+build would also do; auth runs before view validation and the middleware redirects every
+`/dashboard/*` path including nonexistent ones, so neither proves a deploy).
+
+**Campaign == Accounts — 12 of 12 scenarios, Δ $0.00 on BOTH spend and revenue.** Totals read from
+each tab's rendered `tfoot`, same window and filters on both:
+| scenario | spend | revenue |
+|---|---|---|
+| unfiltered (2026-10-13) | 1,181.72 | 1,284.48 |
+| source=taboola | 0.00 | 19.10 |
+| source=outbrain | 1,181.72 | 1,265.37 |
+| feed=yahoo | 1,181.72 | 1,284.48 |
+| feed=flux | 1,181.72 | 0.00 |
+| status=enabled | 1,141.92 | 1,214.52 |
+| status=disabled | 39.80 | 34.06 |
+| source=outbrain+feed=yahoo+status=enabled | 1,141.92 | 1,214.52 |
+| 14 days (09-30..10-13) | 26,475.09 | 28,726.92 |
+| account 3971 (DDC) | 2,793.21 | 1,733.24 |
+| account 239 (IA) | 7,957.11 | 8,877.09 |
+| accounts 239,3971 | 10,750.32 | 10,610.33 |
+Every row identical on both tabs. Internal consistency also holds: enabled + disabled spend
+(1,141.92 + 39.80) = the unfiltered 1,181.72 exactly, and the two-account filter is exactly additive
+(2,793.21 + 7,957.11 = 10,750.32).
+
+**The labelled orphan rows are real and carrying money**, which is the part that could have silently
+under-reported: `(Unattributed)` 1 account, spend 0.00 / **revenue 16.79** (a 050 orphan with NULL
+`ad_account_id`), and `(Untagged)` 1 account, **spend 5.92** / revenue 0.00. Both appear below the
+named providers, and the five group subtotals sum to the Total row exactly
+(188.83 + 23.04 + 963.93 + 0.00 + 5.92 = 1,181.72 spend;
+293.00 + 21.17 + 953.52 + 16.79 + 0.00 = 1,284.48 revenue). Had either been dropped, Accounts would
+have sat below Campaign — it does not.
+
+**Group headers render in the client's requested format**, e.g.
+`Codefuel / Perion [Codefuel] · 5 accounts · Spend 188.83 · Revenue 293.00 · Profit 104.17 · Margin
+35.55%`, with `DDC -1.87` and `Image Advantage -10.41` in red. Default date preset is **Yesterday**.
+
+**`Click Margin $` present and correctly placed on ALL 8 tabs** — accounts, campaign, daily, hourly,
+ads, device, country, site — in every case immediately after `Yahoo CPA` and before `Profit`,
+matching the client's screenshot. Arithmetic spot-checked on live rows: 0.70−0.38=0.32,
+1.16−0.52=0.64, 0.25−0.09=0.16, 0.57−0.62=−0.05.
+
+**On the 1-cent apparent discrepancies:** comparing the *displayed* `RPC's − Yahoo CPA` against the
+displayed `Click Margin $` differs by at most $0.01 on 12 of 12 rows and on the Total. That is
+rounding of rounded inputs, not a defect — the total's true values are revenue/ad_clicks =
+1,284.48/2,939 = 0.43705 and spent/ad_clicks = 1,181.72/2,939 = 0.40208, difference 0.03497, which
+correctly displays as 0.03, whereas 0.44 − 0.40 of the displayed figures gives 0.04. This also
+confirms the Total is derived from the summed numerator/denominator rather than from per-row rates.
+
+**Observations, not defects, none introduced by this change:**
+- The Project control reads `Codefuel` and `Showing 1 of 35 · 1 Codefuel` on first load while the
+  table is unfiltered. Reproduced **identically on Campaign and Daily**, so it is pre-existing
+  FilterBar behaviour (default-account seeding), not specific to the new tab. Worth a separate look:
+  a control that displays a selection the query does not apply is the same class of problem the
+  client has reported twice before.
+- A near-zero negative click margin renders as `-0.00` (SBH_ssm_02, true profit −$0.87). Cosmetic.
+- When the table is scrolled horizontally the provider group-header band appears empty, because the
+  header is a single full-width `colSpan` cell that scrolls out of view. Pre-existing behaviour of
+  the Campaign tab's account headers; unchanged here.
+**No code changes were needed.** Nothing was written to the database; all checks were read-only.
+**Commit:** below (docs only).
