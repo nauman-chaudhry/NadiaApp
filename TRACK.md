@@ -2523,3 +2523,87 @@ browser (the API is auth-only, so no unauthenticated check can see rows):
   correct. Not treated as a defect; noted in case it recurs under automation.
 - No console errors on the page.
 **Commit:** below (docs only).
+
+### 2026-10-14 — Client requests: Accounts-by-feed-provider tab + "Click Margin $" column
+**Client (2026-10-14, with a spreadsheet screenshot):** (1) *"add a tab to show all active accounts
+by feed providers … see what account is in profit and what is making loss … I need to see which
+account needs to be prioritised and worked on quickly"*, with a worked example grouping accounts
+under Codefuel / Image Advantage / DDC and showing Spend | Revenue | Profit for each, for the
+**previous day**. (2) *"on all tabs showing performances add a new column called 'Clicks Margin $'"*
+with the formula **`Clicks Margin $ = RPC's - Yahoo CPA`**.
+
+**1. New `accounts` view + tab.**
+The API gains `view=accounts`, built on the **same MV, the same `mvWhere` and the same activity
+guard as the Campaign view**, grouped by `ad_accounts.id` and joined out to `client_partners`
+(feed provider) and `platforms` (traffic source). Built that way on purpose: Accounts total ==
+Campaign total **by construction** for every filter combination, rather than by a matrix of checks
+that could drift. "Active" = the existing `HAVING` activity guard, so zero-activity accounts are not
+listed.
+Two rows are deliberately kept rather than dropped, per §6 (never silently drop revenue):
+`ad_account_id IS NULL` (migration 050 orphans, when no account is tagged for the partner) renders
+as **(Unattributed revenue - no account)**, and a real account with no `client_partner_id` renders
+under **(Untagged)**, matching the Project dropdown's own wording. Both sort below the named
+providers; within a provider rows sort **biggest loss first**, which is the question the tab exists
+to answer.
+Frontend: new `/dashboard/accounts` page, listed **first** in `NavTabs`. The existing campaign
+group-header mechanism was generalised (`campaignGroups` → `rowGroups`) to group by any key — the
+Accounts tab groups by feed provider and its header row shows **n accounts · Spend · Revenue ·
+Profit · Margin**, profit in red when negative, which is literally the client's example format.
+The tab **defaults to yesterday** (every other tab keeps last-14-days); `DashboardShell` and
+`FilterBar` apply the same rule, and `FilterBar` is now keyed on the view so a preserved component
+state cannot show "last 14 days" over a table built from yesterday.
+
+**2. `click_margin` on every view.**
+The two inputs already existed in the API and on screen: `rpc` (`revenue/ad_clicks`) and `yahoo_cpa`
+(`spent/ad_clicks`). So the column is exactly `rpc - yahoo_cpa`, and because both share the
+`ad_clicks` denominator it is identically `(revenue - spent) / ad_clicks` — profit per partner ad
+click. Verified against the client's screenshot: 0.80−0.58=0.22, 0.64−1.55=−0.91, 1.03−0.71=0.32.
+**Computed in JS (`withClickMargin` in the `/api/stats` handler), not in SQL — deliberately.**
+`buildStatsSql` emits rows from ~30 **positional** UNION branches; threading a new column through
+every one in the right slot is precisely the change most likely to break a branch silently (§7).
+Every branch already emits `revenue`, `spent` and `ad_clicks`, already feed-sliced via `REV`/`ADC`,
+so the derived form is both safer and automatically correct under `feed=yahoo|flux`. It also gives a
+consistent answer on branches that stub `yahoo_cpa` to 0 (the Outbrain device branch, where spend is
+0 by design).
+It is a **rate, not a sum**: both totals implementations recompute it from the summed
+numerator/denominator — `computeTotals` (server) and `computeTotalsClient` (`StatsTable.tsx`, the
+second implementation that takes over when an inline column filter is active, and the one previous
+work has repeatedly missed). Rendered between `Yahoo CPA` and `Profit`, matching the screenshot's
+column order, and added to the Excel export on all 8 tabs.
+*Note on persisted column layouts:* adding a column changes `defaultOrder.length`, so the saved
+`ssm-colorder-<view>` guard rejects the stale array and falls back to the default order. The new
+column therefore always appears; anyone who had drag-reordered a tab loses that custom order once.
+Saved hidden-column sets are unaffected.
+
+**Files:** `backend/src/api/server.ts`; `frontend/lib/api.ts`,
+`frontend/components/{StatsTable,FilterBar,DashboardShell}.tsx`,
+`frontend/app/dashboard/NavTabs.tsx`, NEW `frontend/app/dashboard/accounts/page.tsx`; `CLAUDE.md` §8.
+**No migration, no worker change, no data change.**
+
+**Verified:**
+- Backend `tsc` clean; frontend `tsc` clean; `next build` clean, with `/dashboard/accounts` emitted
+  as a dynamic route.
+- **Every statement `buildStatsSql` generates was parsed with the real PostgreSQL grammar**
+  (libpg_query/WASM): 23 statements — 11 `accounts` variants (plain, source=outbrain/taboola,
+  single + multi account, feed yahoo/flux, status, GD, campaign, and all five filters at once) plus
+  all 12 pre-existing view/source combinations as a regression check — **23 parse clean, 0 syntax
+  errors**. Placeholder numbering is contiguous and matches the arg count in every case
+  (kitchensink 5/5, filtered 3/3), so no bind-parameter mismatch.
+- The generated `accounts` SQL was read line by line against the Campaign branch: identical
+  `mvTotals`, `mvWhere` and `HAVING`; every metric column resolves to the MV and every ambiguous
+  name (`name`, `code`, `id`, `external_id`, `status`) is either qualified or shadowed inside its
+  own subquery — the same construct the Campaign branch already runs in production with
+  `ad_accounts` joined.
+
+**NOT VERIFIED — no numbers.** This machine (Windows, unlike the Mac the older entries describe) has
+**no `backend/.env`, no `DATABASE_URL`, no psql and no Docker**, so nothing could be run against the
+live DB or the deployed API (which is auth-only). Per §4 this work is **not "done"** until the
+following is run against production after deploy:
+1. **Accounts total == Campaign total**, spend AND revenue (the 2026-09-10 method note: revenue-only
+   sweeps hid a $2,350 spend divergence for hours), across source × account × feed × status.
+2. The `(Unattributed)` / `(Untagged)` rows reconcile — Accounts must not fall below Campaign.
+3. `click_margin` on a sampled row equals `rpc - yahoo_cpa` to the cent, and the Total row's value
+   equals total-rpc − total-yahoo-cpa rather than a sum of row values.
+**Deploy:** API + frontend together (the frontend requests `view=accounts`, which the deployed API
+would currently reject with a 400). No migration, no worker deploy.
+**Commit:** below.

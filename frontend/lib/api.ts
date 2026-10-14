@@ -1,6 +1,6 @@
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? 'http://localhost:4000';
 
-export type StatsView = 'campaign' | 'device' | 'site' | 'country' | 'ads' | 'daily' | 'hourly';
+export type StatsView = 'campaign' | 'device' | 'site' | 'country' | 'ads' | 'daily' | 'hourly' | 'accounts';
 
 export interface StatsFilters {
   view: StatsView;
@@ -32,6 +32,9 @@ export interface StatsRow {
   conversion_rate_pct: number;
   actual_cpa: number;
   rpc: number;
+  yahoo_cpa: number;
+  /** RPC's - Yahoo CPA, i.e. profit per partner ad click. Added by the API. */
+  click_margin: number;
   [key: string]: any;
 }
 

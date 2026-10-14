@@ -265,7 +265,7 @@ app.get('/api/filters/options', async (_req, res, next) => {
 
 // ---------- Stats ----------
 
-const STATS_VIEWS = ['campaign', 'device', 'site', 'country', 'ads', 'daily', 'hourly'] as const;
+const STATS_VIEWS = ['campaign', 'device', 'site', 'country', 'ads', 'daily', 'hourly', 'accounts'] as const;
 
 const statsQuerySchema = z.object({
   view: z.enum(STATS_VIEWS),
@@ -296,12 +296,12 @@ app.get('/api/stats', async (req, res, next) => {
       const tb = buildStatsSql({ ...params, source: 'taboola' });
       const ob = buildStatsSql({ ...params, source: 'outbrain' });
       const [tbRows, obRows] = await Promise.all([query(tb.sql, tb.args), query(ob.sql, ob.args)]);
-      const rows = [...tbRows, ...obRows];
+      const rows = withClickMargin([...tbRows, ...obRows]);
       res.json({ rows, totals: computeTotals(rows), view: params.view });
       return;
     }
     const { sql, args } = buildStatsSql(params);
-    const rows = await query(sql, args);
+    const rows = withClickMargin(await query(sql, args));
     res.json({ rows, totals: computeTotals(rows), view: params.view });
   } catch (err) {
     next(err);
@@ -575,9 +575,58 @@ function buildStatsSql(p: z.infer<typeof statsQuerySchema>): { sql: string; args
     };
   }
 
-  if (p.view === 'campaign' || p.view === 'daily' || p.view === 'hourly') {
+  if (p.view === 'campaign' || p.view === 'daily' || p.view === 'hourly' || p.view === 'accounts') {
     // MV-based views
     const sqlMap = {
+      // ── Accounts: one row per ad account, grouped by revenue partner ────────
+      // Client request (2026-10-14): "a tab to show all active accounts by feed
+      // providers … see what account is in profit and what is making loss …
+      // which account needs to be prioritised".
+      //
+      // Reads the SAME MV, the SAME mvWhere and the SAME activity guard as the
+      // Campaign view, just grouped one level up — so the Accounts total is
+      // identical to the Campaign total by construction, for every filter
+      // combination. That is deliberate: a summary tab that disagrees with the
+      // tab it summarises is worse than no summary tab.
+      //
+      // Two label cases matter and are NOT dropped (CLAUDE.md §6 — never
+      // silently drop revenue):
+      //   acc IS NULL  -> migration 050 keeps unmatched IA/DDC orphan rows with
+      //                   ad_account_id NULL when no account is tagged for the
+      //                   partner. Shown as one "(Unattributed …)" row.
+      //   cp  IS NULL  -> a real account nobody has tagged yet (SBH_ssm_08/_10,
+      //                   new marketers). Shown as "(Untagged)", matching the
+      //                   Project dropdown's own wording.
+      // Both sort after the named providers so the real feeds lead the page.
+      accounts: `
+        SELECT
+          COALESCE(acc.name, '(Unattributed revenue - no account)')  AS ad_account_name,
+          acc.external_id                                            AS ad_account_ext_id,
+          cp.code                                                    AS partner_code,
+          COALESCE(cp.name,
+                   CASE WHEN acc.id IS NULL THEN '(Unattributed)' ELSE '(Untagged)' END)
+                                                                     AS partner_name,
+          COALESCE(pl.name, '-')                                     AS traffic_source,
+          ${mvTotals}
+        FROM joined_stats_hourly
+        LEFT JOIN ad_accounts     acc ON acc.id = ad_account_id
+        LEFT JOIN client_partners cp  ON cp.id  = acc.client_partner_id
+        LEFT JOIN platforms       pl  ON pl.id  = acc.platform_id
+        ${mvWhere}
+        GROUP BY acc.id, acc.name, acc.external_id, cp.code, cp.name, pl.name
+        -- "Active" = had any activity in the window. Same guard as the Campaign
+        -- view: an all-zero group contributes nothing to any total, so dropping
+        -- it cannot move a number, it only removes a blank line.
+        HAVING SUM(impressions) > 0 OR SUM(clicks) > 0 OR SUM(spent) > 0
+            OR SUM(${REV}) > 0 OR SUM(${ADC}) > 0 OR SUM(${SES}) > 0
+        -- Providers first (alphabetical), then untagged, then unattributed; and
+        -- within each provider the BIGGEST LOSS first, which is the question the
+        -- client opens this tab to answer.
+        ORDER BY CASE WHEN cp.name IS NOT NULL THEN 0
+                      WHEN acc.id  IS NOT NULL THEN 1
+                      ELSE 2 END,
+                 cp.name NULLS LAST,
+                 profit ASC NULLS LAST`,
       campaign: `
         SELECT campaign_name, campaign_external_id AS campaign_id,
                acc.name AS ad_account_name,
@@ -2644,6 +2693,33 @@ function buildStatsSql(p: z.infer<typeof statsQuerySchema>): { sql: string; args
   };
 }
 
+// ---------- Click Margin $ (client request 2026-10-14) ----------
+// Nadia's spreadsheet formula: Click Margin $ = RPC's - Yahoo CPA, i.e. the
+// profit earned per partner ad click. Both sides share the ad_clicks
+// denominator, so it is algebraically (revenue - spent) / ad_clicks, and that
+// is the form computed here:
+//
+//   rpc - yahoo_cpa = revenue/ad_clicks - spent/ad_clicks = (revenue - spent)/ad_clicks
+//
+// Derived in JS rather than added to every SELECT deliberately. buildStatsSql
+// emits rows from ~30 positional UNION branches (CLAUDE.md §7/§8) and a new
+// column would have to be threaded through every one of them in the right
+// slot — the exact change most likely to silently break a branch. Every branch
+// already emits revenue, spent and ad_clicks, and those are already
+// feed-sliced (REV/ADC), so deriving here is both safer and automatically
+// correct under feed=yahoo|flux. It also covers branches that stub yahoo_cpa
+// (e.g. the Outbrain device branch, where spend is 0 by design) consistently.
+function clickMargin(revenue: number, spent: number, adClicks: number): number {
+  return adClicks > 0 ? (revenue - spent) / adClicks : 0;
+}
+
+function withClickMargin(rows: any[]): any[] {
+  for (const r of rows) {
+    r.click_margin = clickMargin(Number(r.revenue) || 0, Number(r.spent) || 0, Number(r.ad_clicks) || 0);
+  }
+  return rows;
+}
+
 // ---------- Totals ----------
 // Rates are recomputed from summed numerator/denominator — averaging per-row
 // rates is mathematically wrong (each row has different weight).
@@ -2669,6 +2745,9 @@ function computeTotals(rows: any[]): Record<string, number> {
     rpc:                 ad_clicks > 0    ? revenue / ad_clicks                     : 0,
     margin_pct:          revenue > 0      ? (revenue - spent) * 100 / revenue       : 0,
     yahoo_cpa:           ad_clicks > 0    ? spent / ad_clicks                       : 0,
+    // Rate, not a sum: recomputed from the summed numerator/denominator so the
+    // Total row reads rpc(total) - yahoo_cpa(total), never a sum of per-row margins.
+    click_margin:        clickMargin(revenue, spent, ad_clicks),
     conversion_scrub,
     scrub_rate_pct:      conversions > 0  ? conversion_scrub * 100 / conversions    : 0,
   };

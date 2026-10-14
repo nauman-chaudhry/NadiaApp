@@ -308,8 +308,15 @@ export default function FilterBar({ options }: Props) {
   const showStatus  = view !== 'country' && view !== 'device' && view !== 'site' && !obHourly;
   const showGd      = !obHourly;
 
-  const [from,       setFrom]       = useState(sp.get('from')        ?? daysAgo(13));
-  const [to,         setTo]         = useState(sp.get('to')          ?? today());
+  // Accounts is a "yesterday's performance" summary, so it defaults to the
+  // previous day while every other tab defaults to the last 14 days. This MUST
+  // match DashboardShell's default or the date box would claim a range the
+  // table did not use.
+  const defFrom = view === 'accounts' ? daysAgo(1) : daysAgo(13);
+  const defTo   = view === 'accounts' ? daysAgo(1) : today();
+
+  const [from,       setFrom]       = useState(sp.get('from')        ?? defFrom);
+  const [to,         setTo]         = useState(sp.get('to')          ?? defTo);
   const [device,     setDevice]     = useState(sp.get('device')      ?? '');
   const [source,     setSource]     = useState(sp.get('source')      ?? 'all');
   const [feed,       setFeed]       = useState(sp.get('feed')        ?? 'all');

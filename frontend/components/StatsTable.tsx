@@ -28,6 +28,11 @@ function computeTotalsClient(rows: StatsRow[]): Record<string, number> {
     rpc:                 ad_clicks > 0   ? revenue / ad_clicks                  : 0,
     margin_pct:          revenue > 0     ? (revenue - spent) * 100 / revenue    : 0,
     yahoo_cpa:           ad_clicks > 0   ? spent / ad_clicks                    : 0,
+    // Click Margin $ = RPC's - Yahoo CPA = (revenue - spent) / ad_clicks.
+    // A rate, so it is recomputed from the summed numerator/denominator here —
+    // summing per-row click margins would weight a 10-click row like a
+    // 10,000-click one.
+    click_margin:        ad_clicks > 0   ? (revenue - spent) / ad_clicks        : 0,
     conversion_scrub,
     scrub_rate_pct:      conversions > 0 ? conversion_scrub * 100 / conversions : 0,
   };
@@ -284,6 +289,11 @@ const PARTNER_COLS: ColumnDef<StatsRow>[] = [
   intCol('sessions',         'Sessions',      'partner'),
   moneyCol('rpc',            "RPC's",         'partner'),
   moneyCol('yahoo_cpa',      'Yahoo CPA',     'partner'),
+  // Client request 2026-10-14: Click Margin $ = RPC's - Yahoo CPA. Placed
+  // between the two columns it is derived from, matching the layout in the
+  // spreadsheet screenshot she sent. Computed by the API (see withClickMargin
+  // in api/server.ts), so it is present on every view.
+  moneyCol('click_margin',   'Click Margin $', 'partner'),
   moneyCol('profit',         'Profit',        'partner'),
   pctCol('margin_pct',       'Margin%',       'partner'),
   intCol('conversion_scrub', 'Conv. Scrub',   'partner'),
@@ -292,6 +302,18 @@ const PARTNER_COLS: ColumnDef<StatsRow>[] = [
 
 // ─── Column definitions per view ──────────────────────────────────────────────
 const VIEW_COLUMNS: Record<StatsView, ColumnDef<StatsRow>[]> = {
+  // Per-account summary grouped by revenue partner. The account is the row's
+  // identity so it takes the sticky first column; the provider is also a body
+  // column (not only a group header) so the tab still reads correctly when the
+  // user sorts by profit across all providers.
+  accounts: [
+    txtCol('ad_account_name',  'Account',       'dimension', 240),
+    txtCol('partner_name',     'Feed Provider', 'dimension', 160),
+    txtCol('traffic_source',   'Traffic Source','dimension', 110),
+    idCol('ad_account_ext_id', 'Account ID',    'dimension'),
+    ...TABOOLA_COLS,
+    ...PARTNER_COLS,
+  ],
   campaign: [
     txtCol('campaign_name',   'Campaign',    'dimension', 280),
     idCol('campaign_id',      'Campaign ID', 'dimension'),
@@ -346,6 +368,23 @@ interface ExpCol { key: string; header: string; type: ExpType }
 
 // Per-tab export columns (human-readable headers), per Nadia's spec.
 const EXPORT_COLUMNS: Record<StatsView, ExpCol[]> = {
+  accounts: [
+    { key: 'ad_account_name', header: 'Account', type: 'text' },
+    { key: 'partner_name', header: 'Feed Provider', type: 'text' },
+    { key: 'traffic_source', header: 'Traffic Source', type: 'text' },
+    { key: 'ad_account_ext_id', header: 'Account ID', type: 'text' },
+    { key: 'impressions', header: 'Impressions', type: 'int' },
+    { key: 'clicks', header: 'Clicks', type: 'int' },
+    { key: 'spent', header: 'Spent', type: 'money' },
+    { key: 'revenue', header: 'Revenue', type: 'money' },
+    { key: 'ad_clicks', header: 'Ad Clicks', type: 'int' },
+    { key: 'sessions', header: 'Sessions', type: 'int' },
+    { key: 'rpc', header: "RPC's", type: 'money' },
+    { key: 'yahoo_cpa', header: 'Yahoo CPA', type: 'money' },
+    { key: 'click_margin', header: 'Click Margin $', type: 'money' },
+    { key: 'profit', header: 'Profit', type: 'money' },
+    { key: 'margin_pct', header: 'Margin%', type: 'pct' },
+  ],
   campaign: [
     { key: 'campaign_name', header: 'Campaign', type: 'text' },
     { key: 'campaign_id', header: 'Campaign ID', type: 'text' },
@@ -359,6 +398,7 @@ const EXPORT_COLUMNS: Record<StatsView, ExpCol[]> = {
     { key: 'revenue', header: 'Revenue', type: 'money' },
     { key: 'ad_clicks', header: 'Ad Clicks', type: 'int' },
     { key: 'sessions', header: 'Sessions', type: 'int' },
+    { key: 'click_margin', header: 'Click Margin $', type: 'money' },
     { key: 'profit', header: 'Profit', type: 'money' },
     { key: 'margin_pct', header: 'Margin%', type: 'pct' },
   ],
@@ -372,6 +412,7 @@ const EXPORT_COLUMNS: Record<StatsView, ExpCol[]> = {
     { key: 'revenue', header: 'Revenue', type: 'money' },
     { key: 'ad_clicks', header: 'Ad Clicks', type: 'int' },
     { key: 'sessions', header: 'Sessions', type: 'int' },
+    { key: 'click_margin', header: 'Click Margin $', type: 'money' },
     { key: 'profit', header: 'Profit', type: 'money' },
     { key: 'margin_pct', header: 'Margin%', type: 'pct' },
   ],
@@ -385,6 +426,7 @@ const EXPORT_COLUMNS: Record<StatsView, ExpCol[]> = {
     { key: 'revenue', header: 'Revenue', type: 'money' },
     { key: 'ad_clicks', header: 'Ad Clicks', type: 'int' },
     { key: 'sessions', header: 'Sessions', type: 'int' },
+    { key: 'click_margin', header: 'Click Margin $', type: 'money' },
     { key: 'profit', header: 'Profit', type: 'money' },
     { key: 'margin_pct', header: 'Margin%', type: 'pct' },
   ],
@@ -397,6 +439,7 @@ const EXPORT_COLUMNS: Record<StatsView, ExpCol[]> = {
     { key: 'revenue', header: 'Revenue', type: 'money' },
     { key: 'ad_clicks', header: 'Ad Clicks', type: 'int' },
     { key: 'sessions', header: 'Sessions', type: 'int' },
+    { key: 'click_margin', header: 'Click Margin $', type: 'money' },
     { key: 'profit', header: 'Profit', type: 'money' },
     { key: 'margin_pct', header: 'Margin%', type: 'pct' },
   ],
@@ -409,6 +452,7 @@ const EXPORT_COLUMNS: Record<StatsView, ExpCol[]> = {
     { key: 'revenue', header: 'Revenue', type: 'money' },
     { key: 'ad_clicks', header: 'Ad Clicks', type: 'int' },
     { key: 'sessions', header: 'Sessions', type: 'int' },
+    { key: 'click_margin', header: 'Click Margin $', type: 'money' },
     { key: 'profit', header: 'Profit', type: 'money' },
     { key: 'margin_pct', header: 'Margin%', type: 'pct' },
   ],
@@ -428,6 +472,7 @@ const EXPORT_COLUMNS: Record<StatsView, ExpCol[]> = {
     { key: 'revenue', header: 'Revenue', type: 'money' },
     { key: 'ad_clicks', header: 'Ad Clicks', type: 'int' },
     { key: 'sessions', header: 'Sessions', type: 'int' },
+    { key: 'click_margin', header: 'Click Margin $', type: 'money' },
     { key: 'profit', header: 'Profit', type: 'money' },
     { key: 'margin_pct', header: 'Margin%', type: 'pct' },
   ],
@@ -440,6 +485,7 @@ const EXPORT_COLUMNS: Record<StatsView, ExpCol[]> = {
     { key: 'revenue', header: 'Revenue', type: 'money' },
     { key: 'ad_clicks', header: 'Ad Clicks', type: 'int' },
     { key: 'sessions', header: 'Sessions', type: 'int' },
+    { key: 'click_margin', header: 'Click Margin $', type: 'money' },
     { key: 'profit', header: 'Profit', type: 'money' },
     { key: 'margin_pct', header: 'Margin%', type: 'pct' },
   ],
@@ -451,6 +497,7 @@ const round2 = (n: number) => Math.round((Number(n) || 0) * 100) / 100;
 // Top-level search box: matches campaign name, ad name, or IDs — any of the
 // view's dimension keys. Empty list = view has no searchable dimensions.
 const SEARCH_KEYS: Record<StatsView, string[]> = {
+  accounts: ['ad_account_name', 'partner_name', 'traffic_source', 'ad_account_ext_id'],
   campaign: ['campaign_name', 'campaign_id', 'ad_account_name'],
   ads:      ['ad_title', 'taboola_ad_id', 'campaign_name', 'campaign_id', 'gd_param', 'landing_url'],
   site:     ['site'],
@@ -846,40 +893,58 @@ export default function StatsTable({ view, data, totals, accounts, from, to }: P
     return map;
   }, [accounts]);
 
-  // Group consecutive rows by ad_account_name (only for campaign view).
-  // Rows are stable-sorted by account name first so groups are always contiguous;
-  // within each group they keep tanstack's sort order (spend DESC by default).
+  // Group consecutive rows under a header row. Two views use this:
+  //   campaign — grouped by ad_account_name, header shows spend/clicks/conv
+  //   accounts — grouped by partner_name (the feed provider), header shows
+  //              spend/revenue/profit, which is exactly the per-provider
+  //              summary the client asked for (2026-10-14).
+  // Rows are stable-sorted by the group key first so groups are always
+  // contiguous; within each group they keep tanstack's sort order.
   type GroupInfo = {
-    accountName: string;
+    label: string;
     partnerCode: string | null;
     spent: number;
     clicks: number;
     conversions: number;
+    revenue: number;
+    profit: number;
     rows: ReturnType<typeof table.getRowModel>['rows'];
   };
 
-  const campaignGroups = useMemo<GroupInfo[] | null>(() => {
-    if (view !== 'campaign') return null;
+  // Labels the server brackets — "(Untagged)", "(Unattributed)" — are not real
+  // providers and belong at the bottom, not sorted under "(" before Codefuel.
+  const groupRank = (s: string) => (s.startsWith('(') ? 1 : 0);
+
+  const rowGroups = useMemo<GroupInfo[] | null>(() => {
+    const groupKey = view === 'campaign' ? 'ad_account_name'
+                   : view === 'accounts' ? 'partner_name'
+                   : null;
+    if (!groupKey) return null;
 
     const sortedRows = [...table.getRowModel().rows].sort((a, b) => {
-      const an = String(a.getValue('ad_account_name') ?? '');
-      const bn = String(b.getValue('ad_account_name') ?? '');
-      return an.localeCompare(bn);
+      const an = String(a.getValue(groupKey) ?? '');
+      const bn = String(b.getValue(groupKey) ?? '');
+      return (groupRank(an) - groupRank(bn)) || an.localeCompare(bn);
     });
 
-    // Count distinct accounts — only show headers when there are 2+
-    const accountNames = new Set(sortedRows.map(r => String(r.getValue('ad_account_name') ?? '')));
-    if (accountNames.size <= 1) return null;
+    // Only show headers when there are 2+ groups — a single header over the
+    // whole table is noise.
+    const names = new Set(sortedRows.map(r => String(r.getValue(groupKey) ?? '')));
+    if (names.size <= 1) return null;
 
     const groups: GroupInfo[] = [];
     for (const row of sortedRows) {
-      const acctName = String(row.getValue('ad_account_name') ?? '');
+      const label = String(row.getValue(groupKey) ?? '');
       const last = groups[groups.length - 1];
-      if (!last || last.accountName !== acctName) {
+      if (!last || last.label !== label) {
         groups.push({
-          accountName: acctName,
-          partnerCode: partnerByName.get(acctName) ?? null,
-          spent: 0, clicks: 0, conversions: 0,
+          label,
+          // campaign: account name -> partner code via the accounts prop.
+          // accounts: the row carries its own partner_code.
+          partnerCode: view === 'accounts'
+            ? ((row.original as StatsRow).partner_code ?? null)
+            : (partnerByName.get(label) ?? null),
+          spent: 0, clicks: 0, conversions: 0, revenue: 0, profit: 0,
           rows: [],
         });
       }
@@ -888,6 +953,8 @@ export default function StatsTable({ view, data, totals, accounts, from, to }: P
       g.spent       += Number(row.getValue('spent')       ?? 0);
       g.clicks      += Number(row.getValue('clicks')      ?? 0);
       g.conversions += Number(row.getValue('conversions') ?? 0);
+      g.revenue     += Number((row.original as StatsRow).revenue ?? 0);
+      g.profit      += Number((row.original as StatsRow).profit  ?? 0);
     }
     return groups;
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1011,23 +1078,41 @@ export default function StatsTable({ view, data, totals, accounts, from, to }: P
         </thead>
 
         <tbody className="divide-y divide-gray-100">
-          {campaignGroups
-            ? campaignGroups.map((group, gi) => (
-                <Fragment key={`${group.accountName}-${gi}`}>
-                  {/* ── Account group header row ── */}
+          {rowGroups
+            ? rowGroups.map((group, gi) => (
+                <Fragment key={`${group.label}-${gi}`}>
+                  {/* ── Group header row (account on Campaign, feed provider on Accounts) ── */}
                   <tr style={{ background: 'rgba(59,130,246,0.06)' }} className="border-t border-blue-100">
                     <td colSpan={visibleCount} className="px-3 py-1.5">
-                      <span className="font-semibold text-gray-800 text-xs">{group.accountName}</span>
+                      <span className="font-semibold text-gray-800 text-xs">{group.label}</span>
                       {group.partnerCode && ACCT_BADGE[group.partnerCode] && (
                         <span className={`ml-2 text-xs font-semibold px-1 py-0.5 rounded ${ACCT_BADGE[group.partnerCode].bg}`}>
                           {ACCT_BADGE[group.partnerCode].label}
                         </span>
                       )}
-                      <span className="ml-4 text-xs text-gray-500">
-                        Spend&nbsp;{fmtMoney(group.spent)}
-                        &nbsp;·&nbsp;Clicks&nbsp;{fmtInt(group.clicks)}
-                        &nbsp;·&nbsp;Conv&nbsp;{fmtInt(group.conversions)}
-                      </span>
+                      {view === 'accounts' ? (
+                        // The client's own summary format: Spend | Revenue | Profit
+                        // per feed provider, with the loss in red so it is the
+                        // thing the eye lands on.
+                        <span className="ml-4 text-xs text-gray-500">
+                          {group.rows.length}&nbsp;account{group.rows.length === 1 ? '' : 's'}
+                          &nbsp;·&nbsp;Spend&nbsp;{fmtMoney(group.spent)}
+                          &nbsp;·&nbsp;Revenue&nbsp;{fmtMoney(group.revenue)}
+                          &nbsp;·&nbsp;Profit&nbsp;
+                          <span className={group.profit < 0 ? 'text-red-600 font-semibold' : 'text-emerald-700 font-semibold'}>
+                            {fmtMoney(group.profit)}
+                          </span>
+                          {group.revenue !== 0 && (
+                            <>&nbsp;·&nbsp;Margin&nbsp;{fmtPct(group.profit * 100 / group.revenue)}</>
+                          )}
+                        </span>
+                      ) : (
+                        <span className="ml-4 text-xs text-gray-500">
+                          Spend&nbsp;{fmtMoney(group.spent)}
+                          &nbsp;·&nbsp;Clicks&nbsp;{fmtInt(group.clicks)}
+                          &nbsp;·&nbsp;Conv&nbsp;{fmtInt(group.conversions)}
+                        </span>
+                      )}
                     </td>
                   </tr>
                   {/* ── Rows for this account ── */}

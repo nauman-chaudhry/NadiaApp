@@ -225,12 +225,21 @@ Outbrain is **daily-grain** in the MV (`outbrain_stats_daily`), so Outbrain reve
 
 ## 8. API — `backend/src/api/server.ts`
 
-`GET /api/stats?view=&from=&to=&...` — views: `campaign, device, site, country, ads, daily, hourly`.
+`GET /api/stats?view=&from=&to=&...` — views: `campaign, device, site, country, ads, daily, hourly,
+accounts`.
 `GET /api/filters/options` — accounts (with `partner_code`), campaigns, countries, devices, statuses.
 `GET /api/sync-status` — freshness per source.
 
-- `campaign`/`daily`/`hourly` read the MV. `device`/`site`/`country`/`ads` query base tables
-  directly, with per-partner CTEs.
+- `campaign`/`daily`/`hourly`/`accounts` read the MV. `device`/`site`/`country`/`ads` query base
+  tables directly, with per-partner CTEs.
+- `accounts` (added 2026-10-14) is the per-account summary grouped by revenue partner. Same MV, same
+  `mvWhere`, same activity guard as `campaign`, grouped one level up — so **Accounts total ==
+  Campaign total by construction**. NULL `ad_account_id` (050 orphans) and NULL `client_partner_id`
+  (untagged accounts) are surfaced as labelled rows, never dropped.
+- `click_margin` ("Click Margin $" = `RPC's - Yahoo CPA` = `(revenue - spent) / ad_clicks`) is
+  **derived in JS** by `withClickMargin()` in the `/api/stats` handler, not in SQL — the row SELECTs
+  are positional across ~30 UNION branches, and every branch already emits the three feed-sliced
+  inputs. Add nothing to the SELECT lists for it.
 - `source` = `taboola` | `outbrain` | *(absent = all)*. Note **`taboola` means `source_platform IS
   DISTINCT FROM 'Outbrain'`**, because IA writes NULL there.
 - `feed` = `yahoo` | `flux` | *(absent = all)*, implemented via the `REV`/`ADC`/`SES` expression

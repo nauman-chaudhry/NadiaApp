@@ -21,8 +21,14 @@ function daysAgo(n: number) {
 }
 
 export default async function DashboardShell({ view, searchParams, note }: Props) {
-  const resolvedFrom = searchParams.from ?? daysAgo(13);
-  const resolvedTo   = searchParams.to   ?? today();
+  // The Accounts summary defaults to YESTERDAY, not the usual 14 days: the
+  // client asked for it to answer "how did each account do yesterday, and which
+  // one do I work on today". Every other tab keeps the 14-day default.
+  // FilterBar applies the same rule so the date control agrees with the data.
+  const defaultFrom = view === 'accounts' ? daysAgo(1) : daysAgo(13);
+  const defaultTo   = view === 'accounts' ? daysAgo(1) : today();
+  const resolvedFrom = searchParams.from ?? defaultFrom;
+  const resolvedTo   = searchParams.to   ?? defaultTo;
   const token = await getAccessToken();
   const [options, stats] = await Promise.all([
     fetchFilterOptions(token),
@@ -88,7 +94,13 @@ export default async function DashboardShell({ view, searchParams, note }: Props
           : undefined;
   return (
     <>
-      <Suspense><FilterBar options={options} /></Suspense>
+      {/* key={view}: FilterBar seeds its controls from the URL on mount only.
+          Tabs no longer share one default date range (Accounts = yesterday,
+          the rest = last 14 days), so a FilterBar whose state survived a tab
+          switch could show "last 14 days" over a table built from yesterday.
+          Keying on the view remounts it per tab, which re-reads the URL —
+          filters still carry across tabs because NavTabs puts them there. */}
+      <Suspense><FilterBar key={view} options={options} /></Suspense>
       {/* Outbrain notice goes ABOVE the table — these views are empty/rolled-up
           under Outbrain, so a note below would sit off-screen and never be seen. */}
       {!outbrainDetailNote && dimCoverageNote && (

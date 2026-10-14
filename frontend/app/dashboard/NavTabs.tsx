@@ -4,6 +4,9 @@ import { usePathname, useSearchParams } from 'next/navigation';
 import clsx from 'clsx';
 
 const TABS = [
+  // Per-account summary by feed provider — the "which account do I work on
+  // today" overview (client request 2026-10-14), so it leads the tab bar.
+  { label: 'Accounts', href: '/dashboard/accounts' },
   { label: 'Campaign', href: '/dashboard/campaign' },
   { label: 'Daily',    href: '/dashboard/daily' },
   { label: 'Hourly',   href: '/dashboard/hourly' },
