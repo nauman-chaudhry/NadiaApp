@@ -2671,3 +2671,24 @@ confirms the Total is derived from the summed numerator/denominator rather than 
   the Campaign tab's account headers; unchanged here.
 **No code changes were needed.** Nothing was written to the database; all checks were read-only.
 **Commit:** below (docs only).
+
+### 2026-10-14 — Client message drafted for the Accounts tab (figures + two open asks)
+**What:** `docs/plans/message-to-nadia-accounts-tab.md` — announces both features and answers the
+question she actually asked ("which account needs to be prioritised") with real numbers. No code.
+**Window chosen deliberately: month-to-date 2026-10-01..10-13, not yesterday.** Her complaint was
+about *this month*, and 13 Oct alone was **+$102.76 profit** — quoting the new tab's default
+yesterday view would have implied things were fine. MTD is **$24,699.70 spend / $26,009.79 revenue /
++$1,310.09 (5.04%)**. Spend and revenue cover the same window on every row by construction (one
+joined view), so the window-mismatch error behind the 2026-09-04 glance.com draft cannot recur here.
+**The finding:** **SBH_ssm_09 (DDC) is losing $1,105.44 at −76.4% MTD** — on its own it cancels most
+of the profit the rest of the business makes. Then SBH_ssm_02 (Codefuel) −$384.29 / −38.3%, and
+SBH_ssm_07 (IA) −$280.08 at only −6.6% but on the second-largest spend in the business. The six
+loss-makers total ~$2,160; without them profit would be ~$3,470 rather than $1,310. Best performers
+are SBH_ssm_06 (+$1,450.82, 17.6%) and the small Codefuel accounts ssm_14 (51.5%) and ssm_01 (24.3%).
+**Deliberately NOT claimed: that SBH_ssm_08 is a losing account.** It shows $173.53 spend against
+$0.00 revenue *because it is untagged* — the partner has never been confirmed (open since
+2026-09-05), so its revenue cannot be matched to it. Presenting that as a performance result would be
+the same error as the glance.com draft. It is raised as a question, together with SBH_ssm_10, and
+alongside the $474.13 of MTD revenue sitting in the `(Unattributed)` row. Both are tagging /
+tracking-template issues, not trading results — and the new tab is what made them visible at a glance.
+**Commit:** below (docs only).
