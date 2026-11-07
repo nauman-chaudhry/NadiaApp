@@ -2751,3 +2751,25 @@ correct. `SBH_ssm_15_IA_Flux` spent $345.24 in October against $0.00 recorded re
 **Saved:** `backend/.scratch/publisher-quality-query.ts` — the read-only bucketing query behind these
 figures. No production code changed; this entry records the finding, not a build.
 **Commit:** below (docs + scratch query only).
+
+### 2026-11-07 — IA fix deployed; 5–7 Nov re-synced and reconciled to IA's API
+**Deploy:** worker deployed by the user after `174884e`. **Verified corrected, not assumed.**
+**Correction run:** `sync:once -- image-advantage-hourly` for 2026-11-05, 11-06, 11-07, then
+`refresh-view`. IA-only jobs were used deliberately rather than `sync-day`, so no Outbrain login was
+triggered (`/login` is rate-limited to 2/hour on a shared credential).
+**Result — stored now equals IA's API to the cent:**
+| day | before | after | IA API |
+|---|---|---|---|
+| 2026-11-05 | $686.87 | **$740.69** | $740.68 |
+| 2026-11-06 | $542.83 | **$636.33** | $636.33 |
+| 2026-11-07 | $17.21 | $23.48 | partial day |
+Dashboard `SBH_ssm_07` for 11-06: **$528.11 → $621.23**. The residual **$4.50** is IA revenue whose
+tag does not resolve to a campaign, so it sits in the `(Unattributed)` row by design:
+$621.23 + $4.50 = $625.73 = IA's figure. ~**$147 restored** across the three days.
+**Separate pre-existing issue found: IA's API returns HTTP 403 several times a day.** Observed on
+11-06 at 02:20, 03:20, 09:20, 16:20, 22:20, 23:20 and 11-07 at 03:20, 04:20, 08:20, 12:20 — all
+`image_advantage/hourly`, `rows_written: 0`. It predates this fix and self-recovers on the next tick,
+so no data is lost, but it is why the 12:20 run after the deploy failed. **That failure was NOT the
+fix.** Not chased further; flagged to the client. Worth a retry/backoff in the IA client, and worth
+raising with IA.
+**Commit:** below (docs only).
