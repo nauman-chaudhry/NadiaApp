@@ -91,6 +91,21 @@ function parseTagForRow(row: IARow): { campaignExtId: string; itemExtId: string 
   return affiliatePlatform(row.affiliate) === 'ob' ? parseUserTagOb(row.user_tag) : parseUserTag(row.user_tag);
 }
 
+// IA returns SEVERAL rows for the same (campaign, item, hour): it splits them on
+// a dimension we do not key on, so the same user_tag appears more than once in
+// one hour. `Map.set` kept only the LAST of those rows and silently discarded
+// the rest - on 2026-11-06 that lost $93.49 of $625.73 (15%) on ssm.n2s.hpc.ob
+// alone, and is why the dashboard showed $528.11 against IA's $625.73.
+// Accumulate the additive metrics instead. Tuple layout is the same at all four
+// call sites: 7 = ad_clicks, 8 = sessions, 9 = revenue.
+function addTuple(m: Map<string, any[]>, key: string, tuple: any[]): void {
+  const prev = m.get(key);
+  if (!prev) { m.set(key, tuple); return; }
+  prev[7] = (prev[7] ?? 0) + (tuple[7] ?? 0);
+  prev[8] = (prev[8] ?? 0) + (tuple[8] ?? 0);
+  prev[9] = (prev[9] ?? 0) + (tuple[9] ?? 0);
+}
+
 /**
  * Pull one day of Image Advantage stats and upsert into partner_stats_hourly.
  * Idempotent — re-running for the same date overwrites with latest numbers.
@@ -148,10 +163,10 @@ export async function syncImageAdvantage(opts: {
       const rev = row.partner_rev_share ?? 0;
       if (parsed) {
         const campExt = platformTag ? `${platformTag}:${parsed.campaignExtId}` : parsed.campaignExtId;
-        attr.set(`${campExt}${parsed.itemExtId}${hourUtc}`,
+        addTuple(attr, `${campExt}${parsed.itemExtId}${hourUtc}`,
           [partnerId, opts.granularity, campExt, parsed.itemExtId, hourUtc, '', '', clicks, ses, rev, 0, 0, 0, sourcePlatform]);
       } else {
-        unattr.set(`${row.affiliate}${row.user_tag}${hourUtc}${sourcePlatform}`,
+        addTuple(unattr, `${row.affiliate}${row.user_tag}${hourUtc}${sourcePlatform}`,
           [partnerId, opts.granularity, row.affiliate, row.user_tag, hourUtc, '', '', clicks, ses, rev, 0, 0, 0, sourcePlatform]);
       }
     }
@@ -334,10 +349,10 @@ export async function syncXMetricsDaily(opts: {
       const rev = row.partner_rev_share ?? 0;
       if (parsed) {
         const campExt = `tb:${parsed.campaignExtId}`;
-        attr.set(`${campExt}${parsed.itemExtId}${hourUtc}`,
+        addTuple(attr, `${campExt}${parsed.itemExtId}${hourUtc}`,
           [partnerId, 'x-daily', campExt, parsed.itemExtId, hourUtc, '', '', clicks, 0, rev, 0, 0, 0, sourcePlatform]);
       } else {
-        unattr.set(`${row.affiliate}${row.user_tag}${hourUtc}${sourcePlatform}`,
+        addTuple(unattr, `${row.affiliate}${row.user_tag}${hourUtc}${sourcePlatform}`,
           [partnerId, 'x-daily', row.affiliate, row.user_tag || 'x-metrics', hourUtc, '', '', clicks, 0, rev, 0, 0, 0, sourcePlatform]);
       }
     }

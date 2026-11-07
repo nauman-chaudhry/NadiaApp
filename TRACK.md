@@ -2692,3 +2692,31 @@ the same error as the glance.com draft. It is raised as a question, together wit
 alongside the $474.13 of MTD revenue sitting in the `(Unattributed)` row. Both are tagging /
 tracking-template issues, not trading results — and the new tab is what made them visible at a glance.
 **Commit:** below (docs only).
+
+### 2026-11-07 — IA revenue understated since 5 Nov: `Map.set` overwrote instead of summing
+**Reported by Nadia:** SSM7 shows **$528.11** on the dashboard but IA's API reports **$625.73** for
+the same day (2026-11-06). **Reproduced to the cent and fixed.**
+**Root cause:** `src/sync/imageadvantage.ts` built its pre-upsert dedup map with
+`attr.set(key, tuple)` / `unattr.set(key, tuple)`. `Map.set` **replaces**. IA began returning
+**several rows for the same `(campaign, item, hour)`** — the same `user_tag` appearing more than once
+in one hour, split on a dimension we do not key on — so only the **last** row survived and the rest
+were discarded silently. On 2026-11-06 that collapsed **594 API rows into 402 keys (178 colliding)**.
+Replaying production's overwrite logic against the live API returns **exactly $528.11**, the figure
+Nadia saw; summing instead returns **$621.23 attributed + $4.50 unattributed = $625.73**, which is
+IA's total to the cent. The map key itself is sound (`\x01`-delimited); only the write was wrong.
+**Not historical.** Sampled via the live API: 2026-10-07, 10-15, 10-23, 11-02, 11-04 all lose **$0.00**.
+The duplicate rows **start on 2026-11-05**: 11-05 **−$53.82 (7.3%)**, 11-06 **−$93.49 (14.7%)**,
+11-07 partial **−$1.77 (9.3%)**. **Total understated so far: $149.08.** Earlier figures are correct,
+so this is a new IA behaviour rather than a long-standing leak — consistent with Nadia's note that
+2026-11-06 was "the first time it has been fully synced".
+**Fix:** added `addTuple(map, key, tuple)` which accumulates indices 7/8/9 (`ad_clicks`, `sessions`,
+`revenue`) on collision and inserts otherwise. Applied at **all four** call sites — y-metrics
+attributed + unattributed, and x-metrics attributed + unattributed (the x-metrics path had the
+identical defect and would have lost Flux revenue the same way). `tsc --noEmit` clean.
+**Not changed:** `src/sync/taboola.ts:438` uses the same `tuples.set(...)` shape. Taboola spend is
+$0.00 for all of October so there is nothing to lose today, but it is the same latent defect and
+should be reviewed before Taboola cost resumes.
+**Still to do (needs the user — never deploy):** deploy the worker, then re-run IA for 2026-11-05..07
+to correct the stored rows (`sync:once -- sync-day`), then refresh the MV. The upsert is idempotent,
+so re-running only corrects; it cannot double-count.
+**Commit:** below.
