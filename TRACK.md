@@ -2720,3 +2720,34 @@ should be reviewed before Taboola cost resumes.
 to correct the stored rows (`sync:once -- sync-day`), then refresh the MV. The upsert is idempotent,
 so re-running only corrects; it cannot double-count.
 **Commit:** below.
+
+### 2026-11-07 — Publisher-level quality: IA's Outbrain item id IS the publisher, truncated to 29 chars
+**Why:** Nadia's traffic was flagged by feed providers for bot traffic and she asked whether she
+could identify bad publishers herself. Verified against the live database on 2026-11-07.
+**The blocker, and why it is not one.** The Site view resolves publisher-level revenue only for DDC
+(`server.ts:932,950` filter `cp.code='ddc'`); IA `.ob` rows are excluded from the other branch
+because `psSource` is Taboola-or-NULL and IA writes `source_platform='Outbrain'`
+(`imageadvantage.ts:145`). Since **Taboola spend is $0.00 for all of October** (Outbrain $70,558.41
+vs Taboola $0.00), the one "verified 100%" join in that view covers nothing, and IA — ~76% of spend —
+was invisible. **But IA does send the publisher id:** its Outbrain `item_ext_id` is **29 chars**
+against Outbrain's **34**, so exact joins return **0 of 2,160**. Joining on
+`left(publisher_uuid,29)` matches **1,570 of 2,160 distinct items** and, more importantly,
+**98.6% of IA's Outbrain revenue** ($81,048.75 of $82,173.46 since 1 Oct). **Zero prefix collisions**
+across every publisher in `outbrain_publisher_daily`, so the join is unambiguous.
+**October economics, IA on Outbrain** — 2,369 publishers, $58,859.21 spend / $78,906.67 revenue:
+**77 profitable publishers earn +$30,490.13**, while **2,292 lose $10,442.66** (2,158 at zero
+revenue, 100 returning under half of spend, 34 loss-making). Volume-gated at >=$50 spend,
+**29 publishers lost $8,090.24**.
+**The signal is feed clicks per platform click, not RPC.** Worst offenders: sportscentralnews
+15,292 clicks -> **12** feed clicks ($2,222.53 -> $5.38); Carbuzz Quiz (OMG Studios Ltd.) 9,392 -> **0**
+($1,612.66 -> $0.00); Hidden Story Daily 21,791 -> 343 ($1,285.87 -> $138.32). **RPC is blind to
+these** — with `ad_clicks` ~ 0 it is undefined — so an RPC-index design would have missed exactly the
+publishers that matter. Honest limit: this proves the traffic does not monetise, **not** that it is
+bots; the action (block) is the same either way.
+**Also found:** **SBH_ssm_08 is the single most profitable account** — October $13,857.95 spend /
+$32,350.01 revenue / **+$18,492** — and is *still* untagged (`client_partner_id IS NULL`), so it
+reports as "(Untagged)" everywhere. The 2026-10-14 decision not to call it a loser on $173/$0 was
+correct. `SBH_ssm_15_IA_Flux` spent $345.24 in October against $0.00 recorded revenue.
+**Saved:** `backend/.scratch/publisher-quality-query.ts` — the read-only bucketing query behind these
+figures. No production code changed; this entry records the finding, not a build.
+**Commit:** below (docs + scratch query only).
