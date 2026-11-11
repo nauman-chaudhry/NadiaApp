@@ -2773,3 +2773,88 @@ so no data is lost, but it is why the 12:20 run after the deploy failed. **That 
 fix.** Not chased further; flagged to the client. Worth a retry/backoff in the IA client, and worth
 raising with IA.
 **Commit:** below (docs only).
+
+### 2026-11-12 — Flux revenue connected for Outbrain and MGID; SSM8 / SSM15_IA_Flux tagged
+Nadia's four asks (2026-11-09): tag SSM8 to IA, connect MGID, connect Meta, connect Flux for MGID
+and OB `SBH_ssm_15_IA_Flux`. This entry covers the parts needing no new credentials. MGID and Meta
+**cost** integration is blocked on access (below).
+
+**Root cause of missing Flux — discovery was looking in the wrong feed.** `xMetricsAffiliates()`
+derived its affiliate list from the **y-metrics** (Yahoo) daily feed and kept only `/\.tb(-\d+)?$/`.
+Both halves were wrong. Probing IA's **unfiltered** `/x-metrics/revenue/daily` directly shows the
+only two affiliates that have Flux data at all are **`ssm.flux.pro.ob`** and
+**`ssm.flux.s4s.mgid`** — and *neither appears in the y-metrics feed*, which on 2026-11-07 listed
+seven unrelated `.ob`/`.fb` names. So Flux was never requested for Outbrain or MGID. Stored Flux for
+the 30 days to 11-09 was **$1.01**, all Taboola.
+**Fix:** discovery now reads `fetchIAXDaily(date)` (unfiltered, so it is exact and self-maintaining).
+
+**Two latent bugs that would have mis-booked the new rows, fixed in the same change:**
+- x-metrics used `parseUserTag` (numeric only) for every row, so Outbrain's **hex** tags failed to
+  parse and would have fallen to unattributed. Now uses `parseTagForRow` (hex for `.ob`).
+- x-metrics hardcoded `` campExt = `tb:${…}` ``. MGID campaign ids are 8 digits exactly like
+  Taboola's (the live one is **12520645**), so this could have booked MGID revenue onto a real
+  Taboola campaign. Now `${platformTag}:${…}`, with `affiliatePlatform()` recognising `.mgid` and a
+  single `PLATFORM_SOURCE` map (`ob`→Outbrain, `tb`→Taboola, `mgid`→MGID).
+
+**Reconciled against IA's own affiliate-level totals (rule 4 — not assumed):**
+| day | IA API | stored | delta |
+|---|---|---|---|
+| 2026-11-09 | $6.8998 (129 clicks) | **$6.8996** (128) | −$0.0002 |
+| 2026-11-10 | $11.4547 (205 clicks) | **$11.4557** (205) | +$0.0010 |
+Deltas are rounding across 151 / 280 rows. No double counting.
+
+**Migration 052 — the MV had to change too (a bug this fix *introduced*).** Every Outbrain branch
+emitted literal `0` for `revenue_flux / ad_clicks_flux / sessions_flux`. That was *true* while Flux
+was Taboola-only; the moment `.ob` Flux arrived it was counted in `revenue` but reported as zero
+Flux, so Feed=Flux under-reported and Feed=Yahoo (`revenue - revenue_flux`) over-reported by the
+same amount. 052 = full re-declaration of 050 with `ob_ia_rev` / `ob_ia_orphan` computing the
+x-daily slice, `ob_cf_rev` / `ob_ddc_rev` carrying explicit zeros so the union lines up, and the
+Outbrain output branches emitting the real values. Totals are unchanged by design and were checked:
+rev_all for 9 Nov stayed $1,176.06 and 10 Nov $1,945.13 across the migration.
+
+**`psSource` in server.ts — the Campaign == Ads invariant broke, and was fixed before shipping.**
+The MV admits anything `IS DISTINCT FROM 'Outbrain'`; the base-table views used an explicit
+`('Taboola' OR NULL)` list, which excludes `'MGID'`. Measured: Campaign $18.36 vs Ads $14.99 under
+Feed=Flux — exactly the $3.36 of MGID. Added `'MGID'` to the list (minimal, rather than inverting
+the condition and silently changing Codefuel's `'GDN'` handling). **Verified after the fix — all 9
+combinations of feed × source reconcile to the cent**, plus 2026-10-01..10-20 ($44,860.90 both) and
+2026-10-20..11-11 ($71,683.02 both).
+`'GDN'` (Codefuel, 409 rows / $17.74, last 2026-10-17) stays excluded here though the MV does not
+exclude it — checked, and Campaign == Ads holds anyway, so it costs nothing. Left alone.
+
+**Migration 051 — tagged `SBH_ssm_08` and `SBH_ssm_15_IA_Flux` to `image_advantage`** (matched on
+Outbrain marketer id, never name; never overwrites a non-NULL tag). Both were `NULL` and so sat
+outside every Project filter. **Correcting an earlier claim of mine:** I told the user no IA revenue
+resolved to SSM8 — that came from a query joining only `outbrain_campaigns`. The MV also resolves
+via `outbrain_ad_links.link_id`, and once tagged SSM8 shows **$13,857.95 spend / $32,350.01 revenue**
+since 1 Oct. It is the most profitable account, not a zero-revenue one. `SBH_ssm_15_IA_Flux` shows
+$638.45 spend / $14.76 revenue.
+
+**Still blocked / not done:**
+- **MGID cost** — no API access. Settings → API does not exist on client **996978** (only Profile
+  Info / Notifications / Sources blocklist / Security; the `settings/api` route redirects away).
+  Nadia must have her MGID account manager enable it, then send the 32-char token.
+- **Meta cost** — system user `NADIA_DASHBOARD_API` (ID 61596085036304) created, read-only on ad
+  account **Yahoo - Image Advantage** (`act_1024718543367189`, confirmed to own campaign
+  52517062870940 "DE/AT/CH - Holidays"). Token generation needs a second business admin's approval;
+  request is pending with Nadia.
+- **`ssm.flux.pro.ob` is an Outbrain account we do not sync.** Its 8 campaign ids exist nowhere —
+  not `outbrain_campaigns`, `outbrain_stats_daily` or `outbrain_ad_links`. Every marketer we sync is
+  SBH_ssm_01…15. Its Flux revenue therefore lands via the `COALESCE(…, raw.hex)` fallback rather
+  than on a named campaign. Asked Nadia which account it is.
+- **`SBH_ssm_15_IA_Flux` is not reporting to IA at all.** Its single campaign
+  `00a79c89db634ce98e6107e06c939fda83` ("US-Flux_Mixed KW 19 Oct - PS", ~$13/day, $475 since 19 Oct)
+  appears in **zero** IA user_tags — 0 hits across 929 y-metrics rows (6–8 Nov) and 146 x-metrics
+  rows. No plumbing fix will surface revenue until IA fixes the tracking on that account.
+- **`.fb` and `.ob-int` affiliate suffixes deliberately left alone.** `affiliatePlatform()` returns
+  `''` for both, so they keep NULL `source_platform` and an unprefixed `campaign_ext_id`. Changing
+  that alters the unique-index key for rows that *already exist* (`ssm.flux.pro.fb` $120.15
+  unattributed + $498.35 attributed across 3 Meta campaigns since 30 Sep; `ssm.n2s.hpc.ob-int`
+  $58.66 over 3,077 rows), so the old rows would survive beside the new ones and **double-count on
+  any re-synced day**. Doing it properly needs a delete-and-resync of the backfill window, which
+  belongs with the Meta cost integration, not bolted onto this change.
+- Historical Flux for `.ob` / `.mgid` before 2026-11-09 was never collected and is **not**
+  backfilled yet; `xmetrics-backfill` can recover it.
+- `taboola.ts:438` still has the `tuples.set(...)` overwrite shape fixed in `174884e` (Taboola spend
+  is $0.00, so no impact today).
+**Commits:** below.

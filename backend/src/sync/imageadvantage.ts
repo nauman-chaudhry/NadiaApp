@@ -1,6 +1,7 @@
 import {
   fetchIAHourly,
   fetchIADaily,
+  fetchIAXDaily,
   fetchIAXByUsertag,
   resetIAToken,
   IA_TB_AFFILIATES,
@@ -23,17 +24,28 @@ const IA_PARTNER_CODE = 'image_advantage';
  */
 /**
  * Affiliates to request from the per-affiliate x-metrics endpoint for a day:
- * historical list ∪ IA_X_AFFILIATES ∪ `.tb` affiliates seen in that day's
- * (unfiltered) y-metrics daily feed — then this deployment's tenant rule.
+ * historical list ∪ IA_X_AFFILIATES ∪ every affiliate seen in that day's
+ * UNFILTERED x-metrics feed — then this deployment's tenant rule.
+ *
+ * Discovery used to read the y-metrics (Yahoo) feed and keep only `.tb`
+ * names. Both halves were wrong. Flux affiliates do not appear in y-metrics
+ * at all — on 2026-11-07 that feed listed seven `.ob`/`.fb` names and neither
+ * of the two affiliates that actually have x-metrics data. And the `.tb`
+ * filter would have rejected them anyway: the only affiliates the x-metrics
+ * feed returns are `ssm.flux.pro.ob` and `ssm.flux.s4s.mgid`. Net effect:
+ * Flux was never requested for Outbrain or MGID — 30 days to 2026-11-09 held
+ * $1.01 of stored Flux revenue against roughly $3.50/day available.
+ * /x-metrics/revenue/daily is itself unfiltered, so asking it which
+ * affiliates have Flux data is both exact and self-maintaining.
  */
 async function xMetricsAffiliates(date: string): Promise<string[]> {
   const fromEnv = (env.IA_X_AFFILIATES ?? '').split(',').map(s => s.trim()).filter(Boolean);
   let discovered: string[] = [];
   try {
-    const rows = await fetchIADaily(date);
-    discovered = [...new Set(rows.map(r => r.affiliate))].filter(a => /\.tb(-\d+)?$/i.test(a));
+    const rows = await fetchIAXDaily(date);
+    discovered = [...new Set(rows.map(r => r.affiliate))].filter(Boolean);
   } catch (e: any) {
-    logger.warn({ err: e.message, date }, 'x-metrics: could not discover affiliates from y-metrics; using configured list');
+    logger.warn({ err: e.message, date }, 'x-metrics: could not discover affiliates from the x-metrics feed; using configured list');
   }
   const all = [...new Set([...IA_TB_AFFILIATES, ...fromEnv, ...discovered])];
   return all.filter(a => iaAffiliateAllowed(a)).sort();
@@ -80,11 +92,17 @@ function parseUserTagOb(tag: string): { campaignExtId: string; itemExtId: string
 // Affiliate suffix → platform. Suffixes may carry an instance number for
 // additional accounts (e.g. ssm.n2s.pro.tb-2 = Yahoo-SSM1's Taboola affiliate),
 // so match '.tb' / '.ob' with an optional '-N'.
-function affiliatePlatform(affiliate: string): 'tb' | 'ob' | '' {
+function affiliatePlatform(affiliate: string): 'tb' | 'ob' | 'mgid' | '' {
   if (/\.ob(-\d+)?$/.test(affiliate)) return 'ob';
   if (/\.tb(-\d+)?$/.test(affiliate)) return 'tb';
+  if (/\.mgid(-\d+)?$/.test(affiliate)) return 'mgid';
   return '';
 }
+
+// Affiliate suffix → the source_platform written alongside the row. Keep this
+// the single place that mapping lives; '' (an unrecognised suffix, e.g. .fb)
+// stays NULL exactly as before.
+const PLATFORM_SOURCE: Record<string, string> = { ob: 'Outbrain', tb: 'Taboola', mgid: 'MGID' };
 
 // Pick the right parser for a row based on its affiliate (.ob -> hex, else numeric).
 function parseTagForRow(row: IARow): { campaignExtId: string; itemExtId: string } | null {
@@ -157,7 +175,7 @@ export async function syncImageAdvantage(opts: {
       const parsed = parseTagForRow(row);
       const hourUtc = buildHourUtc(row, opts.granularity);
       const platformTag = affiliatePlatform(row.affiliate);
-      const sourcePlatform = platformTag === 'ob' ? 'Outbrain' : platformTag === 'tb' ? 'Taboola' : null;
+      const sourcePlatform = PLATFORM_SOURCE[platformTag] ?? null;
       const clicks = row.bidded_clicks ?? 0;
       const ses = row.bidded_searches ?? 0;   // bidded_searches = sessions equivalent
       const rev = row.partner_rev_share ?? 0;
@@ -297,9 +315,9 @@ async function finishRun(
  *
  * Storage (attributed rows — the common case):
  *   granularity     = 'x-daily'        — exempt from hourly-wins de-dup in MV
- *   campaign_ext_id = 'tb:<campaign>'  — joins to campaigns.external_id in the MV
- *   item_ext_id     = <item>           — Taboola site/item id
- *   source_platform = 'Taboola'        — all x-metrics affiliates are .tb
+ *   campaign_ext_id = '<platform>:<campaign>'  — 'tb'/'ob'/'mgid', joined in the MV
+ *   item_ext_id     = <item>                   — site/teaser/widget id
+ *   source_platform = 'Taboola' | 'Outbrain' | 'MGID', from the affiliate suffix
  *   ad_clicks = x-metrics clicks, sessions = 0, hour_utc = day start UTC
  *
  * Storage (unattributed rows — placeholder/empty user_tag):
@@ -317,13 +335,10 @@ export async function syncXMetricsDaily(opts: {
   const runId = await startRun('image_advantage_x', 'x-daily', opts.date, opts.date);
 
   try {
-    // x-metrics has no unfiltered endpoint: it must be asked per affiliate. The
-    // list used to be hardcoded to Nadia's nine `ssm.*.tb` names, so a second
-    // tenant's Flux revenue was never requested (review 2026-09-24, finding 3).
-    // Now: the historical list ∪ IA_X_AFFILIATES ∪ every `.tb` affiliate that
-    // appears in the same day's y-metrics feed (which IS unfiltered, so new
-    // affiliates surface there first), then the tenant rule. Requesting an
-    // affiliate that has no x-metrics simply returns no rows.
+    // The BY-USERTAG endpoint must be asked per affiliate, so we still need a
+    // list; /x-metrics/revenue/daily is unfiltered and tells us exactly which
+    // affiliates have Flux data for the day (see xMetricsAffiliates). Requesting
+    // an affiliate that has no x-metrics simply returns no rows.
     const affiliates = await xMetricsAffiliates(opts.date);
     logger.info({ date: opts.date, affiliates }, 'x-metrics: affiliates to request');
     const rawRows = tenantRows(await fetchIAXByUsertag(opts.date, affiliates), { date: opts.date, granularity: 'x-daily' });
@@ -343,12 +358,19 @@ export async function syncXMetricsDaily(opts: {
     const attr = new Map<string, any[]>();
     const unattr = new Map<string, any[]>();
     for (const row of xRows) {
-      const parsed = parseUserTag(row.user_tag ?? '');
-      const sourcePlatform = affiliatePlatform(row.affiliate) === 'tb' ? 'Taboola' : null;
+      // Was parseUserTag (numeric) + a hardcoded 'tb:' for every row, from when
+      // x-metrics really was Taboola-only. Now that .ob and .mgid affiliates are
+      // requested, both would be wrong: an Outbrain hex tag fails the numeric
+      // parser and falls to unattributed, and MGID campaign ids are 8 digits like
+      // Taboola's (the live one is 12520645), so a 'tb:' prefix could collide with
+      // a real Taboola campaign and book MGID revenue against it.
+      const platformTag = affiliatePlatform(row.affiliate);
+      const parsed = parseTagForRow(row as unknown as IARow);
+      const sourcePlatform = PLATFORM_SOURCE[platformTag] ?? null;
       const clicks = row.clicks ?? 0;
       const rev = row.partner_rev_share ?? 0;
       if (parsed) {
-        const campExt = `tb:${parsed.campaignExtId}`;
+        const campExt = platformTag ? `${platformTag}:${parsed.campaignExtId}` : parsed.campaignExtId;
         addTuple(attr, `${campExt}${parsed.itemExtId}${hourUtc}`,
           [partnerId, 'x-daily', campExt, parsed.itemExtId, hourUtc, '', '', clicks, 0, rev, 0, 0, 0, sourcePlatform]);
       } else {

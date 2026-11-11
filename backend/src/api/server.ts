@@ -380,10 +380,21 @@ function buildStatsSql(p: z.infer<typeof statsQuerySchema>): { sql: string; args
   // these tabs are Taboola-only and return NOTHING under source=outbrain
   // (Outbrain detail lives in the Campaign / Daily / Hourly views). Under
   // taboola/all they show Taboola data as before.
+  // Keep this list in step with the MV, or Campaign != Ads. The MV's `ps` CTE
+  // applies no source_platform filter at all and its Taboola-side arms take
+  // everything `IS DISTINCT FROM 'Outbrain'`, so any platform admitted there
+  // must be admitted here too. 'MGID' was added 2026-11-12 with IA's MGID Flux
+  // affiliate (ssm.flux.s4s.mgid): without it the Campaign tab showed its $3.36
+  // and the Ads tab showed $0.00 under Feed=Flux.
+  // 'GDN' stays out deliberately (Codefuel non-Taboola revenue, 409 rows /
+  // $17.74, last seen 2026-10-17). The MV has no source_platform filter of its
+  // own, but Campaign == Ads still holds to the cent across windows containing
+  // those rows (checked 2026-11-12 over 1-20 Oct: both $44,860.90), so the
+  // exclusion costs nothing here. Left as-is rather than widened in passing.
   const psSource =
     p.source === 'outbrain'
       ? `FALSE`
-      : `(p.source_platform = 'Taboola' OR p.source_platform IS NULL)`;
+      : `(p.source_platform IS NULL OR p.source_platform IN ('Taboola', 'MGID'))`;
 
   // IA Feeds filter (yahoo = y-metrics search, flux = x-metrics display).
   // MV rows carry the flux portion in *_flux columns (migration 037), so the
