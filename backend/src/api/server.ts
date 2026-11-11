@@ -11,7 +11,16 @@ app.use(cors({ origin: env.CORS_ORIGIN, credentials: true }));
 app.use(express.json());
 
 // ---------- Health ----------
-app.get('/health', (_req, res) => res.json({ ok: true, ts: new Date().toISOString() }));
+// `commit` answers "which build is actually live?" without a Render login.
+// Render injects RENDER_GIT_COMMIT into both services; it is absent locally,
+// where 'dev' is reported instead. Added 2026-11-12 after a push could not be
+// told apart from the build before it. Unauthenticated like the rest of
+// /health - a commit SHA of a private repo is not a secret, and nothing else
+// here is sensitive.
+const BUILD_COMMIT = (process.env.RENDER_GIT_COMMIT ?? 'dev').slice(0, 7);
+const BOOTED_AT = new Date().toISOString();
+app.get('/health', (_req, res) =>
+  res.json({ ok: true, ts: new Date().toISOString(), commit: BUILD_COMMIT, bootedAt: BOOTED_AT }));
 
 // ---------- Auth ----------
 // Every /api route requires `Authorization: Bearer <Supabase access token>`.

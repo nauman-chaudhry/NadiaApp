@@ -2858,3 +2858,14 @@ $638.45 spend / $14.76 revenue.
 - `taboola.ts:438` still has the `tuples.set(...)` overwrite shape fixed in `174884e` (Taboola spend
   is $0.00, so no impact today).
 **Commits:** below.
+
+### 2026-11-12 — `/health` now reports the running build
+After pushing `d63f153` there was no way to tell which build the live services
+were running: `/health` returned only `{ok, ts}`, the API's other routes need a
+Supabase token, no Render or GitHub credentials are available in this
+environment, and migrations 051/052 were already applied by hand so a rebuild
+left no trace. The only decisive signal left was the 03:00 UTC x-metrics
+backfill — six hours away.
+`/health` now also returns `commit` (`RENDER_GIT_COMMIT`, 7 chars; `dev`
+locally) and `bootedAt`, so "is this commit live?" is a single curl from now on.
+**Commit:** below.
