@@ -2869,3 +2869,19 @@ backfill — six hours away.
 `/health` now also returns `commit` (`RENDER_GIT_COMMIT`, 7 chars; `dev`
 locally) and `bootedAt`, so "is this commit live?" is a single curl from now on.
 **Commit:** below.
+
+### 2026-11-17 — Nadia: Codefuel domain on SBH_ssm_09 (ex-DDC) — investigated, no code change
+**Ask:** DDC traffic is paused (never profitable); will a Codefuel domain launched into SSM9 be tracked?
+**Answer: yes, no code change needed.** Codefuel-Outbrain revenue joins via `outbrain_ads (gd_param,
+r_param)` (`ob_cf_rev` in 052), which is keyed globally and is account-agnostic; promoted links on
+every synced marketer (SSM9 included) feed it. Caveats given to her: (1) landing URLs must carry
+`gd`/`r`; (2) use fresh pairs — a pair shared with another account is single-owned by the scoring
+rule in `syncOutbrainPromotedLinks`; (3) `syncOutbrainPromotedLinks` runs only in the 03:00 backfill,
+so launch-day revenue sits in `-6`/`ob_cf_orphan` until the next nightly run.
+**Live state checked (read-only):** SSM9 (`005f9aba…`) is tagged `ddc`; Outbrain spend stopped ~14 Nov;
+DDC revenue $0 since 13 Nov.
+**Open decision (asked her):** retag SSM9 `ddc` → `codefuel`. Totals unchanged, but with no
+`ddc`-tagged account the `ddc_orphan` lateral returns NULL, so SSM9's historical unmatched DDC
+revenue (~83%) moves to the NULL-account row (050). Also asked whether to stop the 10:00 DDC email.
+Message: `docs/plans/message-to-nadia-ssm9-codefuel.md`.
+**Commit:** below (docs only).
