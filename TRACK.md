@@ -2885,3 +2885,20 @@ DDC revenue $0 since 13 Nov.
 revenue (~83%) moves to the NULL-account row (050). Also asked whether to stop the 10:00 DDC email.
 Message: `docs/plans/message-to-nadia-ssm9-codefuel.md`.
 **Commit:** below (docs only).
+
+### 2026-11-17 — Business health review (read-only) ahead of a partnership pitch
+**Why:** the user is considering pitching Nadia a full-time traffic-management partnership and asked
+whether the numbers support it. No code or data changed. Figures from `joined_stats_hourly` and base tables.
+**Monthly (all sources):** Aug spend $65.2k / rev $114.1k / **+$48.9k**; Sep $69.7k / $95.1k / **+$25.4k**;
+Oct $70.6k / $104.3k / **+$33.7k (48%)**; Nov 1–17 $15.7k / $17.3k / **+$1.6k (10%)**.
+**The November collapse is real, not a sync gap** (all sources syncing; `outbrain_stats_daily` and
+`outbrain_marketer_hourly` agree day by day). Winners stopped spending: SBH_ssm_08 (best account,
++$17.6k / 137% ROI over the 30 days to 17 Nov, ~$1.1k/day) went to **$0 from 1 Nov**; SBH_ssm_03 and
+SBH_ssm_14_Codefuel (both >100% ROI) went to $0 from 27 Oct, the day after Codefuel-Outbrain clicks
+fell 4,139 → 345 (26 Oct). Cause unknown (her pause, Outbrain action, or feed cut after the bot-traffic
+flags noted 2026-11-07) — question for the client.
+**Still losing (30d):** SBH_ssm_15_IA_Flux −$833 (−81%, not reporting to IA), SBH_ssm_09 −$510.
+**Untagged accounts with spend:** SBH_ssm_15_Codefuel ($2.1k, +$470), ssm_10, ssm_16_Codefuel,
+ssm_18_IA, ssm_19_IA, ssm_20_DDC — names suggest the partner but none confirmed; they sit outside
+every Project filter until tagged.
+**Commit:** below (docs only).
