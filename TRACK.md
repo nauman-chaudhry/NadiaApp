@@ -2902,3 +2902,13 @@ flags noted 2026-11-07) — question for the client.
 ssm_18_IA, ssm_19_IA, ssm_20_DDC — names suggest the partner but none confirmed; they sit outside
 every Project filter until tagged.
 **Commit:** below (docs only).
+
+### 2026-11-19 — Meta (IA account): access upgraded, token still awaiting a second admin
+Nadia (2026-11-18) made Meta the priority and gave the dashboard "full access". Checked in her
+Business portfolio **SSM** (`1121656476464351`): system user `NADIA_DASHBOARD_API` (61596085036304)
+now has **Full access** to **Yahoo - Image Advantage**. **Still blocked:** token generation needs
+approval by *another* business admin. The 10 Nov request **expired unapproved** (7-day limit); a
+fresh one was sent 19 Nov (expires 26 Nov) and sits in Nadia's Settings → Requests → Needs review.
+The business owns **Campaigns App** (`1550963855964390`) to issue the token against, so no new app is
+needed. No token exists yet; nothing built. IA's Meta revenue already in the DB: ~$1.1k since 1 Sep.
+**Commit:** below (docs only).
