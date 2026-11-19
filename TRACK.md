@@ -2912,3 +2912,39 @@ fresh one was sent 19 Nov (expires 26 Nov) and sits in Nadia's Settings → Requ
 The business owns **Campaigns App** (`1550963855964390`) to issue the token against, so no new app is
 needed. No token exists yet; nothing built. IA's Meta revenue already in the DB: ~$1.1k since 1 Sep.
 **Commit:** below (docs only).
+
+### 2026-11-19 — Meta (Facebook) cost connected: "Yahoo - Image Advantage" ad account
+**Ask:** Nadia's priority (2026-11-18): connect the Meta_IA account. Token approved and generated
+(system user `NADIA_DASHBOARD_API`, Campaigns App, ads_read); stored only in `backend/.env`
+(gitignored) as `META_ACCESS_TOKEN`, plus `META_AD_ACCOUNT_IDS=act_1024718543367189`.
+**Design — Meta goes into the Taboola tables, no MV change.** IA reports Meta revenue with
+`campaign_ext_id` = the Meta campaign id and `item_ext_id` = the Meta ad id, unprefixed,
+`source_platform` NULL — the exact shape of its Taboola rows. Verified against the live API:
+**100% of IA's attributed Meta revenue since 1 Sep ($1,012.45) carries a real Meta campaign + ad id.**
+So Meta is stored as platform `facebook` (row already existed in `platforms`) in
+`ad_accounts`/`campaigns`/`ads`, with campaign-level hourly cost in `ad_stats_hourly`
+(`ad_id` NULL, like Taboola). The MV's existing `ia_attributed` and `cost` CTEs join them.
+**Built:** `sources/meta/client.ts` (Graph API v25.0, retry on rate-limit codes, `paging.next`
+followed verbatim), `sync/meta.ts` (`syncMetaMetadata`, `syncMetaHourly` — the window is
+**replaced**, not upserted, because Meta omits zero-delivery hours, so an upsert could never zero
+a restated hour; advertiser-timezone hours converted to UTC). `meta` added to `SOURCES`/
+`ENABLED_SOURCES` (credentials required only when enabled); cron `:35`; daily-backfill steps
+`meta-metadata`/`meta-hourly`; run-once `meta-metadata`, `meta-hourly <from> [to]`; filter
+options include `facebook` accounts (frontend groups them as "Meta Accounts").
+**Migration 053** tags the account `image_advantage` (by external id, NULL-only). Applied.
+**Data loaded:** 5 campaigns, 16 ads, 5,615 hourly rows, 2026-09-01..11-19.
+**Reconciled (rule 4):** stored spend vs Meta's account-level daily insights — **79 of 80 days to
+the cent**, total $1,479.88; the one difference is 2026-11-19 (live day, +$0.13 accrued between
+calls). Campaign == Ads == Accounts verified on a local API: Meta account Oct 1–Nov 19
+**$927.21 / $629.44** under all, yahoo, flux; source=taboola Oct **$581.95 / $501.44** (= Meta's
+October spend exactly). Meta is **losing: −$297.77 (−32%)** over that window.
+**Pre-existing, not caused by this:** Outbrain-side Campaign vs Ads spend differs by $0.16
+(11-10..11-19) and $0.30 (October); source=taboola and the Meta account match exactly. Not chased.
+**Known limits (phase 2):** source=taboola includes Meta (the MV's source filter is
+`source_platform IS DISTINCT FROM 'Outbrain'`); a proper `source=meta` needs API + frontend work.
+`ssm.flux.pro.fb` unattributed IA revenue ($77.71 since 1 Sep, broken template) stays in the IA
+orphan row. The token was pasted into chat — consider regenerating it later.
+**Deploy (user):** worker + API env: add `meta` to `ENABLED_SOURCES`, set `META_ACCESS_TOKEN` and
+`META_AD_ACCOUNT_IDS` on both (env.ts requires them wherever meta is enabled); frontend for the
+label. 053 is already applied; the API build will skip it.
+**Commit:** below.

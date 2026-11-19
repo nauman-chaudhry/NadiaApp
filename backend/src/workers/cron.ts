@@ -4,6 +4,7 @@ import { syncCodefuel } from '../sync/codefuel.js';
 import { syncImageAdvantage } from '../sync/imageadvantage.js';
 import { syncOutbrainMarketerHourly, syncOutbrainCost, syncOutbrainAds } from '../sync/outbrain.js';
 import { syncDDCRange, syncDDCHourly } from '../sync/ddc.js';
+import { syncMetaMetadata, syncMetaHourly } from '../sync/meta.js';
 import { sendDdcHourlyReport } from '../reports/ddc-hourly-csv.js';
 import { runDailyBackfill, withSyncRun } from './daily-backfill.js';
 import { logger } from '../config/logger.js';
@@ -149,6 +150,20 @@ scheduleFor('outbrain', '25 * * * *', async () => {
   // refresh. The marketer-hourly job never needed one because the Hourly tab reads
   // outbrain_marketer_hourly directly.
   await attempt('mv refresh (outbrain)', () => refreshJoinedView());
+});
+
+// ---------- Meta (Facebook) cost: HH:35 ----------
+// Metadata first (a handful of calls — new campaigns/ads must exist before their
+// cost rows, or the hourly sync skips them), then yesterday + today campaign-level
+// hourly cost, then the MV. The hourly sync REPLACES its window, so re-asking for
+// yesterday every hour converges on Meta's restated numbers.
+scheduleFor('meta', '35 * * * *', async () => {
+  const now = new Date();
+  const w = { startDate: isoDay(addDaysUtc(now, -1)), endDate: isoDay(now) };
+  logger.info({ ...w }, 'cron: meta hourly start');
+  await attempt('meta metadata', () => syncMetaMetadata());
+  await attempt('meta hourly', () => syncMetaHourly(w));
+  await attempt('mv refresh (meta)', () => refreshJoinedView());
 });
 
 // ---------- DDC: EVERY HOUR at :45 ----------

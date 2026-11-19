@@ -20,6 +20,7 @@ import { syncOutbrainCampaigns, syncOutbrainPromotedLinks, syncOutbrainCost, syn
 import { query } from '../db/client.js';
 import { logger } from '../config/logger.js';
 import { sourceEnabled, type Source } from '../config/tenant.js';
+import { syncMetaMetadata, syncMetaHourly } from '../sync/meta.js';
 
 function isoDay(d: Date): string {
   return d.toISOString().slice(0, 10);
@@ -151,6 +152,10 @@ export async function runDailyBackfill(): Promise<{ ok: string[]; failed: string
       from: w.startDate,
       to: isoDay(addDays(now, -1)),
     }));
+
+    // 3c. Meta — metadata + campaign-level hourly cost over the full window.
+    await step('meta-metadata', 'meta', () => syncMetaMetadata());
+    await step('meta-hourly', 'meta', () => syncMetaHourly(w));
 
     // 4. Device/Country/Site cost.
     await step('taboola-geo-cost', 'taboola', () => syncTaboolaGeoCost(w));

@@ -21,6 +21,10 @@
  *   npm run sync:once -- ddc-report 2026-09-11 someone@example.com
  *     ^ build and EMAIL the client's hourly-by-Type-Tag CSV for a date
  *       (date defaults to yesterday; recipient defaults to REPORT_EMAIL_TO)
+ *   npm run sync:once -- meta-metadata
+ *     ^ Meta (Facebook): register the account(s), campaigns and ads
+ *   npm run sync:once -- meta-hourly 2026-09-01 2026-11-19
+ *     ^ Meta campaign-level hourly cost; REPLACES the window (advertiser-tz dates)
  *   npm run sync:once -- refresh-view
  *   npm run sync:once -- tenant-check
  *     ^ READ-ONLY: which Taboola accounts / Outbrain marketers / IA affiliates this
@@ -57,6 +61,7 @@ import { runDailyBackfill } from './daily-backfill.js';
 import { syncCodefuel } from '../sync/codefuel.js';
 import { syncImageAdvantage, syncXMetricsDaily } from '../sync/imageadvantage.js';
 import { syncDDC, syncDDCRange, syncDDCHourly } from '../sync/ddc.js';
+import { syncMetaMetadata, syncMetaHourly } from '../sync/meta.js';
 import { sendDdcHourlyReport } from '../reports/ddc-hourly-csv.js';
 import { syncOutbrainCampaigns, syncOutbrainCost, syncOutbrainPromotedLinks, syncOutbrainBreakdowns, syncOutbrainAds, syncOutbrainCountry, syncOutbrainPublisher, syncOutbrainMarketerHourly } from '../sync/outbrain.js';
 import { logger } from '../config/logger.js';
@@ -153,6 +158,7 @@ const SOURCE_OF_JOB: Record<string, Source> = {
   'outbrain-breakdowns': 'outbrain', 'outbrain-ads-breakdown': 'outbrain',
   'outbrain-country-breakdown': 'outbrain', 'outbrain-publisher-breakdown': 'outbrain',
   'outbrain-marketer-hourly': 'outbrain',
+  'meta-metadata': 'meta', 'meta-hourly': 'meta',
   'ddc': 'ddc', 'ddc-report': 'ddc', 'ddc-backfill': 'ddc', 'ddc-hourly': 'ddc',
 };
 
@@ -309,6 +315,15 @@ async function main() {
       logger.info(r, 'ddc-hourly done');
       break;
     }
+    case 'meta-metadata':
+      await syncMetaMetadata();
+      break;
+
+    case 'meta-hourly':
+      if (!startDate) throw new Error('meta-hourly needs <startDate> [endDate]');
+      await syncMetaHourly({ startDate, endDate: endDate ?? startDate });
+      break;
+
     case 'refresh-view':
       await refreshJoinedView();
       break;
@@ -331,7 +346,7 @@ async function main() {
         console.log(`\nImage Advantage affiliates seen yesterday (${affiliates.length}):`);
         for (const a of affiliates) console.log(`  ${iaAffiliateAllowed(a) ? 'KEEP' : 'skip'}  ${a}`);
       }
-      console.log(`\nSources: ${['taboola','outbrain','codefuel','image_advantage','ddc'].map(s => `${s}=${sourceEnabled(s as any) ? 'on' : 'off'}`).join('  ')}`);
+      console.log(`\nSources: ${['taboola','outbrain','codefuel','image_advantage','ddc','meta'].map(s => `${s}=${sourceEnabled(s as any) ? 'on' : 'off'}`).join('  ')}`);
       break;
     }
     case 'tenant-tag': {

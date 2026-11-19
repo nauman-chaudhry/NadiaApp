@@ -193,7 +193,7 @@ app.get('/api/filters/options', async (_req, res, next) => {
          FROM ad_accounts a
          LEFT JOIN client_partners cp ON cp.id = a.client_partner_id
          LEFT JOIN platforms pl       ON pl.id = a.platform_id
-         WHERE pl.code IN ('taboola','outbrain')
+         WHERE pl.code IN ('taboola','outbrain','facebook')
          ORDER BY pl.code, a.name`,
       ),
       // Campaigns live in TWO tables: `campaigns` is Taboola-only, Outbrain's are

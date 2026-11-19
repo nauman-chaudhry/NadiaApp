@@ -54,6 +54,12 @@ const schema = z.object({
   // Resend account or delivery is restricted to the account owner's own address;
   // revlogicmedia.com is the verified domain on this account; a from-address on
   // any other domain is rejected or silently restricted to the account owner.
+  // Meta (Facebook) Marketing API — non-expiring system-user token (ads_read) and
+  // the ad accounts this deployment syncs (comma list, with or without 'act_').
+  META_ACCESS_TOKEN: z.string().optional(),
+  META_AD_ACCOUNT_IDS: z.string().optional(),
+  META_API_VERSION: z.string().default('v25.0'),
+
   RESEND_API_KEY: z.string().optional(),
   REPORT_EMAIL_FROM: z.string().default('Seven Sphere Reports <nadia@revlogicmedia.com>'),
   REPORT_EMAIL_TO: z.string().optional(),
@@ -78,7 +84,7 @@ const schema = z.object({
   // own database. The partner APIs are shared credentials that return EVERY
   // account, so each deployment must say which accounts are its own. See
   // config/tenant.ts and docs/plans/joe-dashboard.md.
-  //   ENABLED_SOURCES         comma list of taboola,outbrain,codefuel,image_advantage,ddc
+  //   ENABLED_SOURCES         comma list of taboola,outbrain,codefuel,image_advantage,ddc,meta
   //   TENANT_ACCOUNT_INCLUDE  regex on the Taboola account / Outbrain marketer NAME;
   //                           when set, only matching accounts are synced
   //   TENANT_ACCOUNT_EXCLUDE  regex; matching accounts are skipped (applied after INCLUDE)
@@ -117,6 +123,9 @@ if (enabledSources.has('codefuel') && !(env.CODEFUEL_CLIENT_ID && env.CODEFUEL_C
 }
 if (enabledSources.has('image_advantage') && !(env.IMAGE_ADVANTAGE_EMAIL && env.IMAGE_ADVANTAGE_PASSWORD)) {
   missing.push('IMAGE_ADVANTAGE_EMAIL / IMAGE_ADVANTAGE_PASSWORD (image_advantage is enabled)');
+}
+if (enabledSources.has('meta') && !(env.META_ACCESS_TOKEN && env.META_AD_ACCOUNT_IDS)) {
+  missing.push('META_ACCESS_TOKEN / META_AD_ACCOUNT_IDS (meta is enabled)');
 }
 if (missing.length) {
   console.error('Invalid environment configuration: missing ' + missing.join('; '));

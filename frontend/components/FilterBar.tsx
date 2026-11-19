@@ -459,7 +459,7 @@ export default function FilterBar({ options }: Props) {
       .map(a => ({
         key: String(a.id),
         label: a.name,
-        group: a.source === 'outbrain' ? 'Outbrain Accounts' : 'Taboola Accounts',
+        group: a.source === 'outbrain' ? 'Outbrain Accounts' : a.source === 'facebook' ? 'Meta Accounts' : 'Taboola Accounts',
         badge: a.partner_code
           ? { text: PARTNER_LABELS[a.partner_code] ?? a.partner_code, className: PARTNER_COLORS[a.partner_code] ?? 'bg-gray-100 text-gray-600' }
           : null,

@@ -28,7 +28,7 @@ import { env } from './env.js';
  * so a mistake shows up as a missing account, never as wrong numbers.
  */
 
-export const SOURCES = ['taboola', 'outbrain', 'codefuel', 'image_advantage', 'ddc'] as const;
+export const SOURCES = ['taboola', 'outbrain', 'codefuel', 'image_advantage', 'ddc', 'meta'] as const;
 export type Source = (typeof SOURCES)[number];
 
 const enabled = new Set(env.ENABLED_SOURCES.split(',').map(s => s.trim()).filter(Boolean));

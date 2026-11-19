@@ -35,7 +35,8 @@ An ad-arbitrage performance dashboard. Seven Sphere Media buys traffic on **nati
 (cost) and monetizes it through **search/display partners** (revenue). The dashboard's job is to
 join the two so Nadia can see profit and margin per campaign, per ad, per hour.
 
-- **Cost sources (traffic platforms):** Taboola, Outbrain
+- **Cost sources (traffic platforms):** Taboola, Outbrain, Meta (since 2026-11-19 — stored in the
+  Taboola tables under platform `facebook`; see TRACK 2026-11-19)
 - **Revenue sources (monetization partners):** Codefuel/Perion, Image Advantage (IA), DDC *(being
   added — see [§12](#12-current-state))*
 
@@ -272,6 +273,7 @@ accounts`.
 | `:15` | Codefuel hourly — yesterday **and** today, isolated (Codefuel publishes ~3–6h late) + MV refresh |
 | `:20` | IA hourly — yesterday **and** today, isolated + MV refresh |
 | `:25` | Outbrain, 2-day EDT window: marketer-hourly → per-campaign cost → per-promoted-link cost → MV refresh (~7 min, 42 calls) |
+| `:35` | Meta — metadata + campaign-level hourly cost (yesterday + today, window REPLACED) + MV refresh |
 | `:45` | DDC — daily `detail` (D-3..D-0, gated by the `date` report) **and** the hourly feed + MV refresh |
 | 10:00 `Europe/London` | DDC hourly-by-Type-Tag CSV emailed to the client via Resend (`REPORT_EMAIL_TO`), recorded as `sync_runs` source `ddc` / job `report` |
 | every 2h | Taboola metadata (new accounts/campaigns/ads) |
@@ -352,7 +354,8 @@ too, with the reason.
 - **Git:** branch `main`, remote `origin` (GitHub). History was re-initialised on 2026-09-21
   (`36e7de1 m1.0`), so older TRACK.md commit hashes no longer resolve. Commit everything; push only
   after the user's explicit OK (§1).
-- **Latest applied migration: `050`** (2026-09-25), on BOTH databases (Nadia's and Joe's).
+- **Latest applied migration: `053`** on Nadia's DB (2026-11-19, tags the Meta account to IA); `050`
+  on BOTH databases as of 2026-09-25 — check `_migrations` for the current state.
   Authoritative MV = **`050`** (= 047 with `LEFT JOIN LATERAL` on the `ia_orphan`/`ddc_orphan`
   account laterals). `048` = `app_settings` (Outbrain token store), `049` = revoke all browser-role
   grants on `public`. No migration is pending.
