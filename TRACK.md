@@ -2948,3 +2948,24 @@ orphan row. The token was pasted into chat — consider regenerating it later.
 `META_AD_ACCOUNT_IDS` on both (env.ts requires them wherever meta is enabled); frontend for the
 label. 053 is already applied; the API build will skip it.
 **Commit:** below.
+
+### 2026-11-19 — Meta deploy verified live + independent checks (two Orca workers)
+**Deploy (user):** API live on `3c9040d` (14:29Z); worker's first scheduled Meta job ran at
+14:35:05Z, sync_runs 33405, status ok, 116 rows. Env added on both services.
+**Independent verification (read-only Orca worker), 7/7 PASS:** stored Meta spend equals Meta's daily
+insights to the cent on every day 09-01..11-18 ($1,472.10 both); account 37109 = facebook /
+image_advantage, 5 campaigns / 16 ads; 5,000 of 5,047 IA NULL-platform attributed rows since 1 Sep
+resolve to exactly one Meta campaign ($1,013.28; the other 47 are $0); MV for the Meta account
+Oct 1–Nov 19 $928.11 / $630.28 = base tables, $0 Meta revenue left in the IA orphan rows;
+Campaign == Ads == Accounts exact for the Meta account (all/yahoo/flux) and source=taboola; the only
+gap is $0.78 Outbrain-side link-grain skew (pre-existing, not this commit).
+**Minor risks noted, not fixed:** an unregistered account is skipped but the run still records 'ok';
+no retry on network timeouts or Meta 80000-series throttle codes; the :35 tick is not guarded
+against the 03:00 backfill (overlap → one failed run, not duplicates); source=taboola includes Meta.
+**Redirect-URL research (second Orca worker) for Nadia's Outbrain question:** Cloudflare
+"preserve query string" is OFF by default; Outbrain says dynamic macros belong in the campaign
+**Tracking suffix**, not the URL; Outbrain terms bar redirecting to a destination other than the
+one submitted (only copy found on a third-party mirror); ≥5 redirects can block Outbrain review;
+Perion requires approved traffic sources — nothing public for IA/Yahoo; custom CNAME domains from
+IA unverified; CPC is auction-set, so savings are unproven → A/B test.
+**Commit:** below (docs only).
