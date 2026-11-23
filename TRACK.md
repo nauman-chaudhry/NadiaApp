@@ -2997,3 +2997,14 @@ source=meta (Nov 1–23 $432.28 / $299.30 / 1,188 Results; feed yahoo/flux; acco
 ($581.95 / $396.93 / 1,602), source=taboola, and the Meta account under all sources. Pre-existing
 Outbrain-side gaps unchanged ($0.17 Nov, $0.30 Oct — identical to before this change).
 **Commit:** below.
+
+### 2026-11-23 (22:40 UTC) — Meta per-ad + Results verified after deploy
+API live on `715a359` (22:04Z); the worker's 22:35Z Meta run (sync_runs 34865, ok, 234 rows) wrote
+11-22/23 at ad level with Results, proving the worker is on the new build — all Meta history is now
+ad-level. **Reconciled vs Meta's daily insights: 84/84 days exact on spend AND Results**
+($1,567.78 / 4,385). Local API on the deployed code: source=meta Nov 1–23 Campaign == Ads ==
+Accounts $433.16 / $299.72 / 1,237 Results under all/yahoo/flux and the account filter; Ads shows
+6 real Meta ads, no `-10` rows; /api/sync-status reports meta and taboola separately.
+Chrome check of the live dashboard not possible (extension could not load the site — tabs stay on
+New Tab); left to the user.
+**Commit:** below (docs only).
