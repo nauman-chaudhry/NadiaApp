@@ -2,7 +2,8 @@ import {
   getAccount,
   listCampaigns,
   listAds,
-  fetchCampaignHourly,
+  fetchAdHourly,
+  resultsCount,
   MetaHourlyRow,
 } from '../sources/meta/client.js';
 import { withTx, query } from '../db/client.js';
@@ -12,8 +13,12 @@ import { accountAllowed, defaultPartnerCode } from '../config/tenant.js';
 
 /**
  * Meta (Facebook) cost → the SAME core tables Taboola uses:
- *   ad_accounts (platform 'facebook') → campaigns → ads, and campaign-level
- *   hourly cost in ad_stats_hourly (ad_id NULL, like Taboola).
+ *   ad_accounts (platform 'facebook') → campaigns → ads, and AD-level hourly
+ *   cost in ad_stats_hourly (ad_id set — unlike Taboola, whose rows are
+ *   campaign-level with ad_id NULL). `conversions` holds Meta's "Results".
+ *   Ad level since 2026-11-24 (client: the Ads report showed only 3 Meta rows,
+ *   one per campaign, where Ads Manager shows every ad). The MV's `cost` CTE
+ *   groups by campaign, so campaign totals do not depend on the grain.
  *
  * Why the Taboola tables and not a separate meta_* set: Image Advantage reports
  * Meta revenue with campaign_ext_id = the Meta CAMPAIGN id and item_ext_id = the
@@ -95,19 +100,25 @@ export async function syncMetaMetadata(): Promise<void> {
 // ---------- Hourly cost ----------
 
 /**
- * Campaign-level hourly cost for [startDate, endDate] (advertiser-timezone dates).
+ * Ad-level hourly cost + Results for [startDate, endDate] (advertiser-timezone dates).
  *
- * Replace, not upsert: for each account the window's rows are deleted and
- * re-inserted in one transaction. Meta omits hours with no delivery, so an
- * upsert could never zero an hour Meta later restated to nothing; replacing
- * makes the stored window equal Meta's answer exactly.
+ * Replace, not upsert: for each account EVERY row of the window (ad-level and any
+ * legacy campaign-level row) is deleted and re-inserted in one transaction. Meta
+ * omits hours with no delivery, so an upsert could never zero an hour Meta later
+ * restated to nothing; replacing makes the stored window equal Meta's answer.
+ *
+ * An ad or campaign that metadata has not seen (e.g. archived/deleted ads, which
+ * /ads does not list) is registered on the fly from the insights row, so its
+ * historical spend is never dropped.
  */
 export async function syncMetaHourly(opts: { startDate: string; endDate: string }): Promise<void> {
   const runId = await startRun('meta', 'hourly', opts.startDate, opts.endDate);
   let written = 0;
   try {
     const platformId = await getPlatformId(META_PLATFORM_CODE);
-    for (const accountId of metaAccountIds()) {
+    const ids = metaAccountIds();
+    let synced = 0;
+    for (const accountId of ids) {
       const accRows = await query<{ id: number; timezone: string }>(
         'SELECT id, timezone FROM ad_accounts WHERE platform_id = $1 AND external_id = $2',
         [platformId, accountId]);
@@ -116,40 +127,69 @@ export async function syncMetaHourly(opts: { startDate: string; endDate: string 
         continue;
       }
       const { id: adAccountId, timezone } = accRows[0];
-      const campRows = await query<{ id: number; external_id: string }>(
-        'SELECT id, external_id FROM campaigns WHERE ad_account_id = $1', [adAccountId]);
-      const campMap = new Map(campRows.map(r => [r.external_id, r.id]));
+      const rows: MetaHourlyRow[] = await fetchAdHourly(accountId, opts.startDate, opts.endDate);
 
-      const rows = await fetchCampaignHourly(accountId, opts.startDate, opts.endDate);
-      // In-memory dedup on the conflict key (campaign, hour) — mandatory before a bulk insert.
-      const tuples = new Map<string, any[]>();
-      let unknown = 0;
-      for (const r of rows) {
-        const campaignDbId = campMap.get(r.campaign_id);
-        if (!campaignDbId) { unknown++; continue; }
-        const hourUtc = toUtcHour(r, timezone);
-        const prev = tuples.get(`${campaignDbId}|${hourUtc}`);
-        const imp = Number(r.impressions ?? 0), clk = Number(r.inline_link_clicks ?? 0), sp = Number(r.spend ?? 0);
-        if (prev) { prev[3] += imp; prev[4] += clk; prev[5] += sp; }
-        else tuples.set(`${campaignDbId}|${hourUtc}`, [adAccountId, campaignDbId, hourUtc, imp, clk, sp]);
-      }
-      if (unknown) logger.warn({ account: accountId, rows: unknown }, 'meta hourly: rows for campaigns not in metadata — skipped');
-
-      // Delete exactly the UTC span the advertiser-timezone dates cover.
       const spanStart = localMidnightUtc(opts.startDate, timezone);
       const spanEnd = localMidnightUtc(addDays(opts.endDate, 1), timezone);
-      const list = [...tuples.values()];
+      let accRows2 = 0, spend = 0, results = 0;
       await withTx(async (client) => {
+        // Every campaign / ad in the insights must exist (archived ads are not listed by /ads).
+        const campMap = new Map<string, number>();
+        for (const r of (await client.query<{ id: number; external_id: string }>(
+          'SELECT id, external_id FROM campaigns WHERE ad_account_id = $1', [adAccountId])).rows) {
+          campMap.set(r.external_id, r.id);
+        }
+        for (const r of rows) {
+          if (campMap.has(r.campaign_id)) continue;
+          const ins = await client.query<{ id: number }>(
+            `INSERT INTO campaigns (ad_account_id, external_id, name, status, updated_at)
+             VALUES ($1, $2, $3, 'unknown', NOW())
+             ON CONFLICT (ad_account_id, external_id) DO UPDATE SET updated_at = campaigns.updated_at
+             RETURNING id`, [adAccountId, r.campaign_id, r.campaign_name ?? r.campaign_id]);
+          campMap.set(r.campaign_id, ins.rows[0].id);
+        }
+        const adMap = new Map<string, number>();
+        for (const r of (await client.query<{ id: number; external_id: string; campaign_id: number }>(
+          `SELECT a.id, a.external_id, a.campaign_id FROM ads a JOIN campaigns c ON c.id = a.campaign_id
+            WHERE c.ad_account_id = $1`, [adAccountId])).rows) {
+          adMap.set(`${r.campaign_id}|${r.external_id}`, r.id);
+        }
+        for (const r of rows) {
+          const cid = campMap.get(r.campaign_id)!;
+          const k = `${cid}|${r.ad_id}`;
+          if (adMap.has(k)) continue;
+          const ins = await client.query<{ id: number }>(
+            `INSERT INTO ads (campaign_id, external_id, title, status)
+             VALUES ($1, $2, $3, 'unknown')
+             ON CONFLICT (campaign_id, external_id) DO UPDATE SET title = COALESCE(ads.title, EXCLUDED.title)
+             RETURNING id`, [cid, r.ad_id, r.ad_name ?? null]);
+          adMap.set(k, ins.rows[0].id);
+        }
+
+        // In-memory dedup on the conflict key (ad, hour) — mandatory before a bulk insert.
+        const tuples = new Map<string, any[]>();
+        for (const r of rows) {
+          const cid = campMap.get(r.campaign_id)!;
+          const adDbId = adMap.get(`${cid}|${r.ad_id}`)!;
+          const hourUtc = toUtcHour(r, timezone);
+          const imp = Number(r.impressions ?? 0), clk = Number(r.inline_link_clicks ?? 0);
+          const sp = Number(r.spend ?? 0), res = resultsCount(r);
+          const key = `${adDbId}|${hourUtc}`;
+          const prev = tuples.get(key);
+          if (prev) { prev[4] += imp; prev[5] += clk; prev[6] += sp; prev[7] += res; }
+          else tuples.set(key, [adAccountId, cid, adDbId, hourUtc, imp, clk, sp, res]);
+        }
+        const list = [...tuples.values()];
+        // Every row of the account in the window: ad-level AND legacy campaign-level (ad_id NULL).
         await client.query(
-          `DELETE FROM ad_stats_hourly
-            WHERE ad_account_id = $1 AND ad_id IS NULL AND hour_utc >= $2 AND hour_utc < $3`,
+          `DELETE FROM ad_stats_hourly WHERE ad_account_id = $1 AND hour_utc >= $2 AND hour_utc < $3`,
           [adAccountId, spanStart, spanEnd]);
         const CHUNK = 500;
         for (let i = 0; i < list.length; i += CHUNK) {
           const slice = list.slice(i, i + CHUNK);
           const values = slice.map((_, j) => {
-            const b = j * 6;
-            return `($${b + 1},$${b + 2},NULL,$${b + 3},''::text,''::text,''::text,$${b + 4},$${b + 5},$${b + 6},0,NOW())`;
+            const b = j * 8;
+            return `($${b + 1},$${b + 2},$${b + 3},$${b + 4},''::text,''::text,''::text,$${b + 5},$${b + 6},$${b + 7},$${b + 8},NOW())`;
           }).join(',');
           await client.query(
             `INSERT INTO ad_stats_hourly
@@ -158,10 +198,17 @@ export async function syncMetaHourly(opts: { startDate: string; endDate: string 
              VALUES ${values}`,
             slice.flat());
         }
+        accRows2 = list.length;
+        spend = list.reduce((s, t) => s + t[6], 0);
+        results = list.reduce((s, t) => s + t[7], 0);
       });
-      written += list.length;
-      logger.info({ account: accountId, ...opts, rows: list.length,
-        spend: list.reduce((s, t) => s + t[5], 0).toFixed(2) }, 'meta hourly: synced');
+      written += accRows2;
+      synced++;
+      logger.info({ account: accountId, ...opts, rows: accRows2, spend: spend.toFixed(2), results }, 'meta hourly: synced');
+    }
+    // A configured account that could not be synced is a failure, not an 'ok' run.
+    if (synced < ids.length) {
+      throw new Error(`meta hourly: ${ids.length - synced} of ${ids.length} account(s) not registered — run meta metadata`);
     }
     await finishRun(runId, 'ok', written);
   } catch (err: any) {

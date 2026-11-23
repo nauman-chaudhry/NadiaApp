@@ -108,7 +108,7 @@ app.get('/api/sync-runs/latest', async (_req, res, next) => {
 const ENABLED_SOURCES = env.ENABLED_SOURCES.split(',').map(s => s.trim()).filter(Boolean);
 // Hours since the last SUCCESSFUL run before a source counts as stale. All five
 // have hourly jobs now (DDC since 2026-09-09).
-const STALE_AFTER_H: Record<string, number> = { taboola: 3, outbrain: 3, codefuel: 3, image_advantage: 3, ddc: 3 };
+const STALE_AFTER_H: Record<string, number> = { taboola: 3, outbrain: 3, codefuel: 3, image_advantage: 3, ddc: 3, meta: 3 };
 
 app.get('/api/sync-status', async (_req, res, next) => {
   try {
@@ -128,10 +128,15 @@ app.get('/api/sync-status', async (_req, res, next) => {
       ).then(rows => Object.fromEntries(rows.map(r => [r.source, r.last_success]))),
       // Latest hour_utc and fetched_at per partner
       query<{ source: string; latest_hour: string; last_fetched: string }>(
-        `SELECT 'taboola' AS source,
-                MAX(hour_utc)   AS latest_hour,
-                MAX(fetched_at) AS last_fetched
-           FROM ad_stats_hourly
+        `SELECT pl.code AS source,
+                MAX(s.hour_utc)   AS latest_hour,
+                MAX(s.fetched_at) AS last_fetched
+           FROM ad_stats_hourly s
+           JOIN ad_accounts a ON a.id = s.ad_account_id
+           -- ad_stats_hourly holds Taboola AND Meta cost (Meta since 2026-11-19);
+           -- without the split, live Meta rows made dead Taboola look fresh.
+           JOIN platforms pl  ON pl.id = a.platform_id AND pl.code IN ('taboola', 'facebook')
+          GROUP BY pl.code
          UNION ALL
          SELECT 'codefuel',
                 MAX(p.hour_utc),
@@ -170,6 +175,7 @@ app.get('/api/sync-status', async (_req, res, next) => {
       enabled_sources: ENABLED_SOURCES,
       stale,
       sources: sources
+        .map(s => (s.source === 'facebook' ? { ...s, source: 'meta' } : s))
         .filter(s => ENABLED_SOURCES.includes(s.source))
         .map(s => ({
           name:         s.source,
@@ -301,8 +307,16 @@ app.get('/api/stats', async (req, res, next) => {
     // cost tables). Run both and concatenate so the all-sources Ads total
     // reconciles with the Campaign tab. No double count: the generic branch's
     // psSource excludes Outbrain partner rows.
-    if (params.view === 'ads' && params.source !== 'outbrain' && params.source !== 'taboola') {
-      const tb = buildStatsSql({ ...params, source: 'taboola' });
+    // Meta has no device / country / site breakdown (cost or revenue), so under
+    // source=meta those tabs are empty by definition rather than showing
+    // Taboola-side partner rows under a Meta label.
+    if (params.source === 'meta' && (params.view === 'device' || params.view === 'country' || params.view === 'site')) {
+      res.json({ rows: [], totals: computeTotals([]), view: params.view });
+      return;
+    }
+    if (params.view === 'ads' && params.source !== 'outbrain' && params.source !== 'taboola' && params.source !== 'meta') {
+      // `withMeta`: the Taboola-side builder also emits the Meta per-ad branch here.
+      const tb = buildStatsSql({ ...params, source: 'taboola', withMeta: true });
       const ob = buildStatsSql({ ...params, source: 'outbrain' });
       const [tbRows, obRows] = await Promise.all([query(tb.sql, tb.args), query(ob.sql, ob.args)]);
       const rows = withClickMargin([...tbRows, ...obRows]);
@@ -326,7 +340,13 @@ app.get('/api/stats', async (req, res, next) => {
 // (Codefuel) directly with a campaign join.
 // ---------------------------------------------------------------------------
 
-function buildStatsSql(p: z.infer<typeof statsQuerySchema>): { sql: string; args: any[] } {
+// Meta (Facebook) ad accounts. Meta cost lives in the Taboola tables (platform
+// 'facebook', TRACK 2026-11-19), and IA writes Meta revenue with a NULL
+// source_platform like its Taboola rows, so the only reliable Meta/Taboola split
+// is the ACCOUNT's platform.
+const META_ACCTS = `(SELECT _ma.id FROM ad_accounts _ma JOIN platforms _mp ON _mp.id = _ma.platform_id AND _mp.code = 'facebook')`;
+
+function buildStatsSql(p: z.infer<typeof statsQuerySchema> & { withMeta?: boolean }): { sql: string; args: any[] } {
   const args: any[] = [p.from, p.to];
 
   // Standard MV-based WHERE (used by campaign/daily/hourly views).
@@ -337,7 +357,9 @@ function buildStatsSql(p: z.infer<typeof statsQuerySchema>): { sql: string; args
     `hour_utc <  ($2::timestamptz + INTERVAL '1 day')`,
   ];
   if (p.source === 'outbrain')      mvWhereParts.push(`source_platform = 'Outbrain'`);
-  else if (p.source === 'taboola')  mvWhereParts.push(`source_platform IS DISTINCT FROM 'Outbrain'`);
+  else if (p.source === 'taboola')  mvWhereParts.push(`source_platform IS DISTINCT FROM 'Outbrain'`,
+                                                      `(ad_account_id IS NULL OR ad_account_id NOT IN ${META_ACCTS})`);
+  else if (p.source === 'meta')     mvWhereParts.push(`ad_account_id IN ${META_ACCTS}`);
   // 'all' / undefined: no source filter (combined Taboola + Outbrain).
   if (p.account_id && p.account_id !== 'all') {
     const ids = p.account_id.split(',').map(s => parseInt(s.trim(), 10)).filter(n => !isNaN(n));
@@ -2379,6 +2401,11 @@ function buildStatsSql(p: z.infer<typeof statsQuerySchema>): { sql: string; args
   // two tabs disagreed the moment Nadia touched the Status filter. `c` is the
   // campaigns table in every branch it is interpolated into.
   const statClause = p.status ? `AND c.status = ANY(string_to_array($${pArgs.push(p.status)}::text, ','))` : '';
+  // Which halves of this builder run: the Taboola branches (cf_rep / -1 / -2 / -3)
+  // and the Meta per-ad branch. source=taboola → Taboola only; source=meta →
+  // Meta only; all sources (routed here with withMeta) → both.
+  const showTaboola = p.source !== 'meta';
+  const showMeta    = p.source === 'meta' || p.withMeta === true;
 
   return {
     args: pArgs,
@@ -2436,7 +2463,7 @@ function buildStatsSql(p: z.infer<typeof statsQuerySchema>): { sql: string; args
         JOIN campaigns c     ON c.id       = a.campaign_id
         JOIN ad_accounts acc ON acc.id     = c.ad_account_id
         LEFT JOIN cs         ON cs.campaign_id = c.id
-        WHERE TRUE ${accClause} ${campClause} ${statClause}
+        WHERE ${showTaboola ? 'TRUE' : 'FALSE'} ${accClause} ${campClause} ${statClause}
         ORDER BY ck.gd_param, ck.r_param, COALESCE(cs.spent, 0) DESC, a.id DESC
       ),
       -- IA item-id → campaign map (mirrors the MV's ia_item_map from migration
@@ -2464,7 +2491,61 @@ function buildStatsSql(p: z.infer<typeof statsQuerySchema>): { sql: string; args
           AND p.hour_utc <  ($2::timestamptz + INTERVAL '1 day')
           AND ${psSource}
           ${iaFeed}
+          -- Meta campaigns are shown per ad by the Meta branch below.
+          AND NOT EXISTS (SELECT 1 FROM campaigns _mc
+                           WHERE _mc.id = COALESCE(cc.id, im.campaign_db_id)
+                             AND _mc.ad_account_id IN ${META_ACCTS})
         GROUP BY COALESCE(cc.id, im.campaign_db_id)
+      ),
+      -- ── Meta (Facebook) per AD ────────────────────────────────────────────
+      -- Cost: ad_stats_hourly at ad grain (sync/meta.ts since 2026-11-24);
+      -- conversions = Meta "Results". A legacy campaign-level row (ad_id NULL)
+      -- would surface as a labelled campaign row rather than vanish.
+      meta_cost AS (
+        SELECT s.ad_id AS ad_db_id, s.campaign_id AS campaign_db_id,
+               SUM(s.spent) AS spent, SUM(s.impressions) AS impressions,
+               SUM(s.clicks) AS clicks, SUM(s.conversions) AS conversions
+        FROM ad_stats_hourly s
+        WHERE s.ad_account_id IN ${META_ACCTS}
+          AND s.hour_utc >= $1::timestamptz
+          AND s.hour_utc <  ($2::timestamptz + INTERVAL '1 day')
+        GROUP BY s.ad_id, s.campaign_id
+      ),
+      -- IA revenue on Meta campaigns, resolved to the campaign EXACTLY as the MV's
+      -- ia_attributed does (campaign id first, ad id fallback), then to the ad by
+      -- item_ext_id (= Meta ad id). Revenue whose ad cannot be matched keeps its
+      -- campaign and shows on a labelled campaign row, so totals still reconcile.
+      meta_rev AS (
+        SELECT mcamp.id AS campaign_db_id,
+               COALESCE(ma_i.id, ma_c.id) AS ad_db_id,
+               SUM(p.revenue) AS revenue, SUM(p.ad_clicks) AS ad_clicks, SUM(p.sessions) AS sessions
+        FROM partner_stats_hourly p
+        JOIN client_partners cp ON cp.id = p.client_partner_id AND cp.code = 'image_advantage'
+        LEFT JOIN campaigns cc ON cc.external_id = regexp_replace(p.campaign_ext_id, '^tb:', '')
+        LEFT JOIN ia_map im    ON im.item_ext    = regexp_replace(p.campaign_ext_id, '^tb:', '')
+        JOIN campaigns mcamp   ON mcamp.id = COALESCE(cc.id, im.campaign_db_id)
+                              AND mcamp.ad_account_id IN ${META_ACCTS}
+        LEFT JOIN ads ma_i ON ma_i.campaign_id = mcamp.id AND ma_i.external_id = p.item_ext_id
+        LEFT JOIN ads ma_c ON cc.id IS NULL AND ma_c.campaign_id = mcamp.id
+                          AND ma_c.external_id = regexp_replace(p.campaign_ext_id, '^tb:', '')
+        WHERE p.hour_utc >= $1::timestamptz
+          AND p.hour_utc <  ($2::timestamptz + INTERVAL '1 day')
+          AND ${psSource}
+          ${iaFeed}
+        GROUP BY mcamp.id, COALESCE(ma_i.id, ma_c.id)
+      ),
+      meta_rows AS (
+        SELECT k.campaign_db_id, k.ad_db_id,
+               COALESCE(mr.revenue, 0) AS revenue, COALESCE(mr.ad_clicks, 0) AS ad_clicks,
+               COALESCE(mr.sessions, 0) AS sessions,
+               COALESCE(mk.impressions, 0) AS impressions, COALESCE(mk.clicks, 0) AS clicks,
+               COALESCE(mk.conversions, 0) AS conversions, COALESCE(mk.spent, 0) AS spent
+        FROM (SELECT campaign_db_id, ad_db_id FROM meta_cost
+              UNION SELECT campaign_db_id, ad_db_id FROM meta_rev) k
+        LEFT JOIN meta_cost mk ON mk.campaign_db_id = k.campaign_db_id
+                              AND mk.ad_db_id IS NOT DISTINCT FROM k.ad_db_id
+        LEFT JOIN meta_rev  mr ON mr.campaign_db_id = k.campaign_db_id
+                              AND mr.ad_db_id IS NOT DISTINCT FROM k.ad_db_id
       )
       SELECT
         a.id            AS ad_id,
@@ -2585,6 +2666,7 @@ function buildStatsSql(p: z.infer<typeof statsQuerySchema>): { sql: string; args
         ) AS has_cf
       ) cov ON TRUE
       WHERE (ia.revenue > 0 OR ia.sessions > 0)
+        AND ${showTaboola ? 'TRUE' : 'FALSE'}
         ${accClause} ${campClause} ${statClause}
 
       UNION ALL
@@ -2648,6 +2730,7 @@ function buildStatsSql(p: z.infer<typeof statsQuerySchema>): { sql: string; args
         -- drops them under a status filter (their campaign_external_id is NULL,
         -- which fails the IN test), so match that or the two tabs disagree.
         AND ${p.status ? 'FALSE' : 'TRUE'}
+        AND ${showTaboola ? 'TRUE' : 'FALSE'}
       HAVING SUM(p.revenue) > 0 OR SUM(p.sessions) > 0
 
       UNION ALL
@@ -2705,8 +2788,48 @@ function buildStatsSql(p: z.infer<typeof statsQuerySchema>): { sql: string; args
               WHERE ia.campaign_db_id = c.id
                 AND (ia.revenue > 0 OR ia.sessions > 0)
             )
+        -- Meta cost is shown per ad by the Meta branch below.
+        AND acc.id NOT IN ${META_ACCTS}
+        AND ${showTaboola ? 'TRUE' : 'FALSE'}
         ${accClause} ${campClause} ${statClause}
       HAVING COALESCE(SUM(cs.spent), 0) <> 0
+
+      UNION ALL
+
+      -- Meta (Facebook): one row per real Meta ad — its own spend, Results and
+      -- IA revenue. ad_id -10 = Meta revenue/cost that matched no ad (kept on
+      -- its campaign so Campaign == Ads).
+      SELECT
+        COALESCE(a.id, -10)::int                                        AS ad_id,
+        COALESCE(a.external_id, '(Meta · ' || c.external_id || ' — no ad match)')::text AS taboola_ad_id,
+        a.title                                                         AS ad_title,
+        NULL::text                                                      AS gd_param,
+        NULL::text                                                      AS r_param,
+        c.external_id                                                   AS campaign_id,
+        c.name                                                          AS campaign_name,
+        m.revenue, m.ad_clicks, m.sessions,
+        m.impressions, m.clicks, m.conversions, m.spent,
+        CASE WHEN m.impressions = 0 THEN 0 ELSE m.spent * 1000.0 / m.impressions END AS actual_cpm,
+        CASE WHEN m.impressions = 0 THEN 0 ELSE m.clicks * 100.0 / m.impressions END AS ctr_pct,
+        CASE WHEN m.clicks = 0 THEN 0 ELSE m.spent / m.clicks END        AS actual_cpc,
+        CASE WHEN m.clicks = 0 THEN 0 ELSE m.conversions * 100.0 / m.clicks END AS conversion_rate_pct,
+        CASE WHEN m.conversions = 0 THEN 0 ELSE m.spent / m.conversions END AS actual_cpa,
+        CASE WHEN m.ad_clicks = 0 THEN 0 ELSE m.revenue / m.ad_clicks END AS rpc,
+        CASE WHEN m.revenue = 0 THEN 0 ELSE (m.revenue - m.spent) * 100.0 / m.revenue END AS margin_pct,
+        m.revenue - m.spent                                             AS profit,
+        CASE WHEN m.ad_clicks = 0 THEN 0 ELSE m.spent / m.ad_clicks END  AS yahoo_cpa,
+        m.conversions - m.ad_clicks                                     AS conversion_scrub,
+        CASE WHEN m.conversions = 0 THEN 0
+             ELSE (m.conversions - m.ad_clicks) * 100.0 / m.conversions END AS scrub_rate_pct,
+        a.url                                                           AS landing_url
+      FROM meta_rows m
+      JOIN campaigns c     ON c.id   = m.campaign_db_id
+      JOIN ad_accounts acc ON acc.id = c.ad_account_id
+      LEFT JOIN ads a      ON a.id   = m.ad_db_id
+      WHERE ${showMeta ? 'TRUE' : 'FALSE'}
+        AND (m.spent <> 0 OR m.revenue <> 0 OR m.ad_clicks <> 0 OR m.sessions <> 0
+             OR m.impressions <> 0 OR m.clicks <> 0 OR m.conversions <> 0)
+        ${accClause} ${campClause} ${statClause}
 
       ORDER BY revenue DESC NULLS LAST
     `,

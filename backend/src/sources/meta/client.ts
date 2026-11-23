@@ -72,12 +72,25 @@ export interface MetaCampaign { id: string; name: string; effective_status: stri
 export interface MetaAd { id: string; name: string; campaign_id: string; adset_id: string; effective_status: string }
 
 export interface MetaHourlyRow {
+  ad_id: string;
+  ad_name?: string;
   campaign_id: string;
+  campaign_name?: string;
   date_start: string;                 // advertiser-timezone date, YYYY-MM-DD
   hourly_stats_aggregated_by_advertiser_time_zone: string; // 'HH:00:00 - HH:59:59'
   spend?: string;
   impressions?: string;
   inline_link_clicks?: string;
+  // Ads Manager's "Results" column: the count of the ad set's optimisation event
+  // (for this account, offsite_conversion.fb_pixel_lead). Absent values = 0.
+  results?: { indicator: string; values?: { value: string }[] }[];
+}
+
+/** Sum of the "Results" values on an insights row (0 when Meta sends none). */
+export function resultsCount(r: { results?: MetaHourlyRow['results'] }): number {
+  let n = 0;
+  for (const x of r.results ?? []) for (const v of x.values ?? []) n += Number(v.value) || 0;
+  return n;
 }
 
 export function getAccount(accountId: string): Promise<MetaAccount> {
@@ -93,26 +106,27 @@ export function listAds(accountId: string): Promise<MetaAd[]> {
 }
 
 /**
- * Campaign-level hourly cost for an advertiser-timezone date range (inclusive).
- * Meta omits hours with no delivery, exactly like Taboola.
+ * AD-level hourly cost + Results for an advertiser-timezone date range (inclusive).
+ * Meta omits hours with no delivery. Hourly Results sum exactly to the day's
+ * Results (checked 2026-11-24: 64 = 64 for 2026-11-22).
  */
-export function fetchCampaignHourly(accountId: string, since: string, until: string): Promise<MetaHourlyRow[]> {
+export function fetchAdHourly(accountId: string, since: string, until: string): Promise<MetaHourlyRow[]> {
   return getAll<MetaHourlyRow>(`${accountId}/insights`, {
-    level: 'campaign',
+    level: 'ad',
     time_range: JSON.stringify({ since, until }),
     time_increment: '1',
     breakdowns: 'hourly_stats_aggregated_by_advertiser_time_zone',
-    fields: 'campaign_id,spend,impressions,inline_link_clicks',
+    fields: 'ad_id,ad_name,campaign_id,campaign_name,spend,impressions,inline_link_clicks,results',
   });
 }
 
 /** Account-level daily spend — used only to reconcile the stored hourly rows. */
 export function fetchAccountDaily(accountId: string, since: string, until: string):
-  Promise<{ date_start: string; spend: string }[]> {
+  Promise<{ date_start: string; spend: string; results?: MetaHourlyRow['results'] }[]> {
   return getAll(`${accountId}/insights`, {
     level: 'account',
     time_range: JSON.stringify({ since, until }),
     time_increment: '1',
-    fields: 'spend',
+    fields: 'spend,results',
   });
 }

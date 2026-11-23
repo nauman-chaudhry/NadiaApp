@@ -2969,3 +2969,31 @@ one submitted (only copy found on a third-party mirror); ≥5 redirects can bloc
 Perion requires approved traffic sources — nothing public for IA/Yahoo; custom CNAME domains from
 IA unverified; CPC is auction-set, so savings are unproven → A/B test.
 **Commit:** below (docs only).
+
+### 2026-11-24 — Meta: own traffic source, every ad on the Ads report, "Results" as conversions
+**Client asks (Nadia, 2026-11-23):** (1) "Meta" under All Traffic Sources; (2) the Ads report shows
+only 3 Meta rows but Ads Manager shows 16 ads (5 active this month); (3) Meta "Results" missing.
+**Why only 3:** Meta cost was campaign-level and the Taboola-side Ads view shows IA revenue as one
+`-1` row per campaign. **Fix — Meta is now AD-level:** `fetchAdHourly` (insights level=ad, hourly,
+fields incl. `results`) → `ad_stats_hourly` with `ad_id` set; `conversions` = Results (the ad sets
+optimise `offsite_conversion.fb_pixel_lead`; hourly Results sum to the day's — 64 = 64 on 11-22).
+The window delete now removes ALL the account's rows (ad + legacy campaign level); ads/campaigns
+missing from metadata (archived ads) are registered from the insights row. A configured account that
+is not registered now fails the run instead of recording 'ok' (verifier's finding).
+**API:** `source=meta` (= account platform `facebook`, `META_ACCTS`); `source=taboola` now excludes
+Meta accounts; all-sources Ads runs the Taboola builder `withMeta`. New Meta per-ad branch
+(`meta_cost`/`meta_rev`/`meta_rows`): ad spend/impressions/link clicks/Results + IA revenue matched
+on `item_ext_id` = Meta ad id after the MV's own campaign resolution; unmatched → `-10` row on its
+campaign. Meta campaigns excluded from `ia_camp` (-1) and `-3`. Device/country/site → empty under
+meta (with a UI note). `/api/sync-status`: `ad_stats_hourly` freshness split by platform (live Meta
+rows were making dead Taboola look fresh) and a `meta` row. Frontend: "Meta" in Traffic Source.
+**No migration; MV unchanged** (`cost` groups by campaign, so grain does not change totals).
+**Data:** re-synced ad-level 2026-09-01..11-22 (8,783 rows, $1,544.26, 4,336 Results). Because the
+still-deployed old worker rewrites yesterday+today deleting only `ad_id IS NULL` rows, 11-22 was put
+back to campaign level in one transaction ($20.79 both) to avoid a double count; 11-22/23 switch to
+ad level once the new worker is deployed and runs (then a full re-sync).
+**Verified locally (rule 4):** Campaign == Ads == Accounts to the cent, conversions equal, for
+source=meta (Nov 1–23 $432.28 / $299.30 / 1,188 Results; feed yahoo/flux; account filter), Oct meta
+($581.95 / $396.93 / 1,602), source=taboola, and the Meta account under all sources. Pre-existing
+Outbrain-side gaps unchanged ($0.17 Nov, $0.30 Oct — identical to before this change).
+**Commit:** below.

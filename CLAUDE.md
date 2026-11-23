@@ -241,8 +241,13 @@ accounts`.
   **derived in JS** by `withClickMargin()` in the `/api/stats` handler, not in SQL — the row SELECTs
   are positional across ~30 UNION branches, and every branch already emits the three feed-sliced
   inputs. Add nothing to the SELECT lists for it.
-- `source` = `taboola` | `outbrain` | *(absent = all)*. Note **`taboola` means `source_platform IS
-  DISTINCT FROM 'Outbrain'`**, because IA writes NULL there.
+- `source` = `taboola` | `outbrain` | `meta` | *(absent = all)*. Note **`taboola` means `source_platform IS
+  DISTINCT FROM 'Outbrain'` AND the account is not Meta**, because IA writes NULL there for both
+  Taboola and Meta revenue; `meta` = account platform `facebook` (`META_ACCTS` in `server.ts`).
+  Device/country/site return no rows under `meta` (Meta has no such breakdown).
+- **Meta cost is AD-level** in `ad_stats_hourly` (`ad_id` set, `conversions` = Meta "Results"),
+  unlike Taboola's campaign-level rows. The Ads view's Meta branch lists real Meta ads; Meta
+  campaigns are excluded from the `-1`/`-3` rows.
 - `feed` = `yahoo` | `flux` | *(absent = all)*, implemented via the `REV`/`ADC`/`SES` expression
   selectors plus the `iaFeed` granularity clause.
 - Multi-value filters (`account_id`, `campaign_id`, `status`, `country`, `gd`) use
@@ -261,6 +266,7 @@ accounts`.
 | `-6` | Unattributed Outbrain (Codefuel + IA) |
 | `-7` | DDC campaign-level revenue on Outbrain campaigns with no ad-level cost |
 | `-8` | Unattributed DDC — **the majority of DDC revenue** (82.8%). Unlike `-6` this is *not* blanket-suppressed under a filter: it reproduces the MV's `ddc_orphan` account lateral so Campaign == Ads holds under an account filter |
+| `-10` | Meta cost/revenue that matched no Meta ad (kept on its campaign) |
 | `-9` | Codefuel-Outbrain revenue on a campaign with no ad-level cost in the window. Mirrors the MV, which books this revenue to `outbrain_ads.campaign_id` unconditionally; without it the Ads tab silently reassigned it to another account's link |
 
 ---

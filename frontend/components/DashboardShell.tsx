@@ -60,7 +60,9 @@ export default async function DashboardShell({ view, searchParams, note }: Props
   // the business and can read as "the data is missing" rather than "this dimension is
   // not reported". Say so explicitly instead of leaving a near-empty table unexplained.
   const dimView = view === 'country' || view === 'device' || view === 'site';
-  const dimCoverageNote = dimView
+  const dimCoverageNote = dimView && searchParams.source === 'meta'
+    ? `Meta spend and its Image Advantage revenue are not reported by ${view === 'site' ? 'site' : view}, so this tab is empty under the Meta filter. Use the Campaign or Ads tab for Meta.`
+    : dimView
     ? `This tab breaks down only revenue that partners report with a ${view === 'site' ? 'publisher/site' : view}. Image Advantage does not report ${view === 'site' ? 'site' : view} at all, and Outbrain reports no ${view === 'site' ? 'site' : view}-level cost, so spend shows as 0 here and most revenue appears under "(Unattributed)". Use the Campaign tab for complete spend and revenue.`
     : undefined;
 
@@ -85,7 +87,7 @@ export default async function DashboardShell({ view, searchParams, note }: Props
             : (hasDdc
                 ? 'Account-level Outbrain cost per hour. DDC revenue is shown hourly for roughly the last 3 days, which is how far back DDC\'s hourly feed goes; earlier days are daily totals and are not split by hour — use the Campaign or Daily tab for those. Status and GD filters do not apply at account level.'
                 : 'Account-level Outbrain cost per hour. Revenue partners report Outbrain revenue by day, not by hour, so revenue is not split here — use the Campaign or Daily tab. Status and GD filters do not apply at account level.'))
-        : !obSource && view === 'hourly' && searchParams.source !== 'taboola'
+        : !obSource && view === 'hourly' && searchParams.source !== 'taboola' && searchParams.source !== 'meta'
           // Under All Sources the MV's Outbrain rows are daily totals stamped at
           // 00:00; they are excluded here rather than shown as an hour-0 spike.
           ? 'Hourly shows Taboola-side data only: Outbrain cost and revenue are reported by day, not by hour. Select Traffic Source = Outbrain for account-level Outbrain hours, or use the Daily tab for both together.'

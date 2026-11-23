@@ -429,7 +429,8 @@ export default function FilterBar({ options }: Props) {
   // ── Project (partner group) dropdown ─────────────────────────────────────────
   const scopedAccounts = source === 'all'
     ? options.accounts
-    : options.accounts.filter(a => a.source === source);
+    // Meta accounts carry platform code 'facebook'; the filter value is 'meta'.
+    : options.accounts.filter(a => a.source === (source === 'meta' ? 'facebook' : source));
 
   const selectGroup = (groupKey: string) => {
     if (groupKey === '__all__')      { handleAccountChange([]); return; }
@@ -494,7 +495,7 @@ export default function FilterBar({ options }: Props) {
       {/* Traffic Source — search-and-select dropdown. Selecting one source
           filters to it; none or both = All (the API takes a single source). */}
       <SearchableMultiSelect
-        items={[{ key: 'taboola', label: 'Taboola' }, { key: 'outbrain', label: 'Outbrain' }]}
+        items={[{ key: 'taboola', label: 'Taboola' }, { key: 'outbrain', label: 'Outbrain' }, { key: 'meta', label: 'Meta' }]}
         selected={source === 'all' ? [] : [source]}
         onApply={keys => handleSourceChange(keys.length === 1 ? keys[0] : 'all')}
         allLabel="All Traffic Sources"
