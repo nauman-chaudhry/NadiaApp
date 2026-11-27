@@ -177,6 +177,14 @@ The stored value can be **either** a Taboola campaign id **or** an ad/item id, s
 `ia_map` CTEs exist. On Outbrain the tag is a hex id resolved against `outbrain_campaigns.campaign_id`
 then `outbrain_ad_links.link_id`.
 
+**`outbrain_ads` alias rows (migration 054, TRACK 2026-11-27).** Codefuel can report a GID different
+from the one in the Outbrain URL (it maps by domain). `resolveOutbrainCodefuelPairs()` adds
+`origin='alias'` rows mapping the reported `(gd, r)` to the one campaign whose link has that `r`,
+spent on the revenue days and sits on the GID's known domain; `link_gd` = the GID in the link URL,
+which the API's Outbrain Ads branch joins on. Ambiguous pairs are never aliased. A URL pair from
+the nightly sync always overwrites an alias. `/api/sync-status` returns `health` (unattributed
+revenue yesterday + untagged active accounts), shown as a header warning.
+
 **Anything that resolves to nothing becomes an "orphan"/"unattributed" row** surfaced as a labelled
 synthetic row, so totals still reconcile. Never silently drop revenue.
 
@@ -278,7 +286,7 @@ accounts`.
 | `:05` | Taboola hourly (2h window) + MV refresh |
 | `:15` | Codefuel hourly — yesterday **and** today, isolated (Codefuel publishes ~3–6h late) + MV refresh |
 | `:20` | IA hourly — yesterday **and** today, isolated + MV refresh |
-| `:25` | Outbrain, 2-day EDT window: marketer-hourly → per-campaign cost → per-promoted-link cost → MV refresh (~7 min, 42 calls) |
+| `:25` | Outbrain, 2-day EDT window: marketer-hourly → per-campaign cost → per-promoted-link cost → **cf-pairs** (DB only: missing Codefuel `(gd,r)` URL pairs + GID aliases into `outbrain_ads`) → MV refresh (~7 min, 42 calls) |
 | `:35` | Meta — metadata + campaign-level hourly cost (yesterday + today, window REPLACED) + MV refresh |
 | `:45` | DDC — daily `detail` (D-3..D-0, gated by the `date` report) **and** the hourly feed + MV refresh |
 | 10:00 `Europe/London` | DDC hourly-by-Type-Tag CSV emailed to the client via Resend (`REPORT_EMAIL_TO`), recorded as `sync_runs` source `ddc` / job `report` |

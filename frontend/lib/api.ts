@@ -79,6 +79,9 @@ export interface SyncStatus {
   enabled_sources?: string[];
   /** Enabled sources whose last successful run is older than their threshold. */
   stale?: string[];
+  /** Attribution health: unattributed revenue yesterday + untagged active accounts. */
+  health?: { status: 'ok' | 'warn'; unattributed_yesterday: number; revenue_yesterday: number;
+             untagged_accounts: string[]; warnings: string[] };
 }
 
 export async function fetchSyncStatus(token?: string): Promise<SyncStatus> {

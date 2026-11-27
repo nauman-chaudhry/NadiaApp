@@ -59,6 +59,11 @@ export default async function DashboardLayout({ children }: { children: React.Re
           <span className={`text-xs ${STALE_COLORS[f.level]}`} title={f.detail}>
             Data last synced: {f.headline}
           </span>
+          {syncStatus?.health?.status === 'warn' && (
+            <span className="text-xs text-yellow-300" title={syncStatus.health.warnings.join('\n')}>
+              ⚠ Attribution: {syncStatus.health.warnings.length} issue{syncStatus.health.warnings.length > 1 ? 's' : ''}
+            </span>
+          )}
           <SignOutButton />
         </div>
       </header>

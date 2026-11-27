@@ -333,9 +333,10 @@ export async function syncOutbrainPromotedLinks(): Promise<{ pairs: number }> {
   await withTx(async (client) => {
     for (const row of rows) {
       await client.query(
-        `INSERT INTO outbrain_ads (gd_param, r_param, campaign_id, updated_at)
-         VALUES ($1,$2,$3,NOW())
-         ON CONFLICT (gd_param, r_param) DO UPDATE SET campaign_id = EXCLUDED.campaign_id, updated_at = NOW()`,
+        `INSERT INTO outbrain_ads (gd_param, r_param, campaign_id, origin, link_gd, updated_at)
+         VALUES ($1,$2,$3,'url',NULL,NOW())
+         ON CONFLICT (gd_param, r_param) DO UPDATE SET campaign_id = EXCLUDED.campaign_id,
+                                                       origin = 'url', link_gd = NULL, updated_at = NOW()`,
         [row.gd, row.r, row.campaign_id],
       );
     }
@@ -675,4 +676,97 @@ export async function syncOutbrainBreakdowns(opts: {
   const p = await syncOutbrainPublisher(opts);
   const h = await syncOutbrainMarketerHourly(opts);
   return { ads: a.rowsWritten, country: c.rowsWritten, publisher: p.rowsWritten, hourly: h.rowsWritten };
+}
+
+
+// ---------- Codefuel (gd, r) → campaign resolution, hourly (DB only) ----------
+
+/**
+ * Keeps outbrain_ads complete between the nightly promoted-links runs, so new
+ * Codefuel revenue on Outbrain lands on its campaign within the hour instead of
+ * the "(Unattributed — no account)" row. No Outbrain API call (shared, login-
+ * rate-limited credential): it reads outbrain_ad_daily, which the :25 job keeps
+ * hourly with each promoted link's landing URL, gd and r.
+ *
+ * 1. URL pairs: every (gd, r) seen in a link URL in the last 14 days that has no
+ *    outbrain_ads row is inserted (owner = the campaign with most spend on it).
+ *    Insert-only: the nightly scoring in syncOutbrainPromotedLinks still decides
+ *    ownership of shared pairs and is never overridden here.
+ * 2. Aliases: Codefuel can report a GID different from the one in the URL
+ *    (2026-11-25: SSM16 URLs say AP1009513, Codefuel reports AP1009512 — the
+ *    domain's GID). For a reported pair still unmatched, candidates are links
+ *    with the same r that SPENT on the revenue days (or the day before); when the
+ *    GID has appeared in any URL before, only links on those domains count. An
+ *    alias is written only if exactly ONE campaign and ONE URL gd remain —
+ *    ambiguity is left unattributed rather than guessed.
+ */
+export async function resolveOutbrainCodefuelPairs(): Promise<{ urlPairs: number; aliases: number }> {
+  const run = await query<{ id: number }>(
+    `INSERT INTO sync_runs (source, job_type, window_start, window_end, status)
+     VALUES ('outbrain', 'cf-pairs', CURRENT_DATE - 14, CURRENT_DATE, 'running') RETURNING id`);
+  const runId = run[0].id;
+  try {
+    const res = await withTx(async (client) => {
+      const urlPairs = await client.query(
+        `INSERT INTO outbrain_ads (gd_param, r_param, campaign_id, origin, link_gd, updated_at)
+         SELECT DISTINCT ON (d.gd_param, d.r_param) d.gd_param, d.r_param, d.campaign_id, 'url', NULL, NOW()
+           FROM outbrain_ad_daily d
+          WHERE d.gd_param IS NOT NULL AND d.gd_param <> ''
+            AND d.r_param  IS NOT NULL AND d.r_param  <> ''
+            AND d.day_utc >= CURRENT_DATE - 14
+            AND NOT EXISTS (SELECT 1 FROM outbrain_ads oa
+                             WHERE oa.gd_param = d.gd_param AND oa.r_param = d.r_param)
+          GROUP BY d.gd_param, d.r_param, d.campaign_id
+          ORDER BY d.gd_param, d.r_param, SUM(d.spent) DESC, d.campaign_id
+         ON CONFLICT (gd_param, r_param) DO NOTHING`);
+      const aliases = await client.query(
+        `WITH unmatched AS (
+           SELECT p.asset_gid AS gd, p.channel AS r,
+                  MIN(p.hour_utc::date) AS d0, MAX(p.hour_utc::date) AS d1
+             FROM partner_stats_hourly p
+             JOIN client_partners cp ON cp.id = p.client_partner_id AND cp.code = 'codefuel'
+            WHERE p.campaign_ext_id IS NULL
+              AND p.source_platform = 'Outbrain'
+              AND p.hour_utc >= NOW() - INTERVAL '14 days'
+              AND p.asset_gid IS NOT NULL AND p.asset_gid <> ''
+              AND p.channel   IS NOT NULL AND p.channel   <> ''
+              AND NOT EXISTS (SELECT 1 FROM outbrain_ads oa
+                               WHERE oa.gd_param = p.asset_gid AND oa.r_param = p.channel)
+            GROUP BY p.asset_gid, p.channel
+         ),
+         gd_host AS (
+           SELECT DISTINCT d.gd_param AS gd,
+                  lower(substring(d.landing_url from '^https?://(?:www\\.)?([^/?#:]+)')) AS host
+             FROM outbrain_ad_daily d
+            WHERE d.gd_param IS NOT NULL AND d.landing_url IS NOT NULL
+         ),
+         cand AS (
+           SELECT DISTINCT u.gd, u.r, d.campaign_id, d.gd_param AS link_gd
+             FROM unmatched u
+             JOIN outbrain_ad_daily d
+               ON d.r_param = u.r AND d.spent > 0
+              AND d.day_utc BETWEEN u.d0 - 1 AND u.d1
+              AND d.gd_param IS NOT NULL AND d.gd_param <> ''
+            WHERE NOT EXISTS (SELECT 1 FROM gd_host g WHERE g.gd = u.gd)
+               OR EXISTS (SELECT 1 FROM gd_host g
+                           WHERE g.gd = u.gd
+                             AND g.host = lower(substring(d.landing_url from '^https?://(?:www\\.)?([^/?#:]+)')))
+         )
+         INSERT INTO outbrain_ads (gd_param, r_param, campaign_id, origin, link_gd, updated_at)
+         SELECT gd, r, MIN(campaign_id), 'alias', MIN(link_gd), NOW()
+           FROM cand
+          GROUP BY gd, r
+         HAVING COUNT(DISTINCT campaign_id) = 1 AND COUNT(DISTINCT link_gd) = 1
+         ON CONFLICT (gd_param, r_param) DO NOTHING`);
+      return { urlPairs: urlPairs.rowCount ?? 0, aliases: aliases.rowCount ?? 0 };
+    });
+    await query(`UPDATE sync_runs SET finished_at = NOW(), status = 'ok', rows_written = $1 WHERE id = $2`,
+      [res.urlPairs + res.aliases, runId]);
+    logger.info(res, 'outbrain cf-pairs: resolved');
+    return res;
+  } catch (err: any) {
+    await query(`UPDATE sync_runs SET finished_at = NOW(), status = 'error', error = $1 WHERE id = $2`,
+      [err.message, runId]);
+    throw err;
+  }
 }

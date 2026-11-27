@@ -2,7 +2,7 @@ import cron from 'node-cron';
 import { syncTaboolaHourly, syncTaboolaMetadata, refreshJoinedView } from '../sync/taboola.js';
 import { syncCodefuel } from '../sync/codefuel.js';
 import { syncImageAdvantage } from '../sync/imageadvantage.js';
-import { syncOutbrainMarketerHourly, syncOutbrainCost, syncOutbrainAds } from '../sync/outbrain.js';
+import { syncOutbrainMarketerHourly, syncOutbrainCost, syncOutbrainAds, resolveOutbrainCodefuelPairs } from '../sync/outbrain.js';
 import { syncDDCRange, syncDDCHourly } from '../sync/ddc.js';
 import { syncMetaMetadata, syncMetaHourly } from '../sync/meta.js';
 import { sendDdcHourlyReport } from '../reports/ddc-hourly-csv.js';
@@ -146,6 +146,9 @@ scheduleFor('outbrain', '25 * * * *', async () => {
   // $2,293.74 -- i.e. Campaign != Ads for any window containing today.
   // Same 2-day window, same idempotent upsert; ~5 min, the slowest of the three.
   await attempt('outbrain ad-level cost', () => syncOutbrainAds(w));
+  // Codefuel (gd, r) → campaign, DB only: new links' URL pairs within the hour
+  // instead of at the 03:00 backfill, plus unambiguous GID aliases (TRACK 2026-11-27).
+  await attempt('outbrain cf-pairs', () => resolveOutbrainCodefuelPairs());
   // Required: the Campaign/Daily tabs read the MV, so new cost is invisible until a
   // refresh. The marketer-hourly job never needed one because the Hourly tab reads
   // outbrain_marketer_hourly directly.

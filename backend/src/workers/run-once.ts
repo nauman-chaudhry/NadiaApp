@@ -25,6 +25,8 @@
  *     ^ Meta (Facebook): register the account(s), campaigns and ads
  *   npm run sync:once -- meta-hourly 2026-09-01 2026-11-19
  *     ^ Meta campaign-level hourly cost; REPLACES the window (advertiser-tz dates)
+ *   npm run sync:once -- outbrain-cf-pairs
+ *     ^ DB only: add missing Codefuel (gd, r) URL pairs + unambiguous GID aliases to outbrain_ads
  *   npm run sync:once -- refresh-view
  *   npm run sync:once -- tenant-check
  *     ^ READ-ONLY: which Taboola accounts / Outbrain marketers / IA affiliates this
@@ -63,7 +65,7 @@ import { syncImageAdvantage, syncXMetricsDaily } from '../sync/imageadvantage.js
 import { syncDDC, syncDDCRange, syncDDCHourly } from '../sync/ddc.js';
 import { syncMetaMetadata, syncMetaHourly } from '../sync/meta.js';
 import { sendDdcHourlyReport } from '../reports/ddc-hourly-csv.js';
-import { syncOutbrainCampaigns, syncOutbrainCost, syncOutbrainPromotedLinks, syncOutbrainBreakdowns, syncOutbrainAds, syncOutbrainCountry, syncOutbrainPublisher, syncOutbrainMarketerHourly } from '../sync/outbrain.js';
+import { syncOutbrainCampaigns, syncOutbrainCost, syncOutbrainPromotedLinks, syncOutbrainBreakdowns, syncOutbrainAds, syncOutbrainCountry, syncOutbrainPublisher, syncOutbrainMarketerHourly, resolveOutbrainCodefuelPairs } from '../sync/outbrain.js';
 import { logger } from '../config/logger.js';
 import { pool, query } from '../db/client.js';
 import { accountAllowed, describeTenant, iaAffiliateAllowed, sourceEnabled, type Source } from '../config/tenant.js';
@@ -157,7 +159,7 @@ const SOURCE_OF_JOB: Record<string, Source> = {
   'outbrain-campaigns': 'outbrain', 'outbrain-ads': 'outbrain', 'outbrain-cost': 'outbrain',
   'outbrain-breakdowns': 'outbrain', 'outbrain-ads-breakdown': 'outbrain',
   'outbrain-country-breakdown': 'outbrain', 'outbrain-publisher-breakdown': 'outbrain',
-  'outbrain-marketer-hourly': 'outbrain',
+  'outbrain-marketer-hourly': 'outbrain', 'outbrain-cf-pairs': 'outbrain',
   'meta-metadata': 'meta', 'meta-hourly': 'meta',
   'ddc': 'ddc', 'ddc-report': 'ddc', 'ddc-backfill': 'ddc', 'ddc-hourly': 'ddc',
 };
@@ -322,6 +324,11 @@ async function main() {
     case 'meta-hourly':
       if (!startDate) throw new Error('meta-hourly needs <startDate> [endDate]');
       await syncMetaHourly({ startDate, endDate: endDate ?? startDate });
+      break;
+
+    case 'outbrain-cf-pairs':
+      // DB only (no Outbrain API call): missing URL pairs + unambiguous GID aliases.
+      console.log(await resolveOutbrainCodefuelPairs());
       break;
 
     case 'refresh-view':

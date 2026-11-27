@@ -16,7 +16,7 @@ import { syncTaboolaMetadata, syncTaboolaHourly, syncTaboolaGeoCost, refreshJoin
 import { syncCodefuel } from '../sync/codefuel.js';
 import { syncImageAdvantage, syncXMetricsDaily } from '../sync/imageadvantage.js';
 import { syncDDCRange } from '../sync/ddc.js';
-import { syncOutbrainCampaigns, syncOutbrainPromotedLinks, syncOutbrainCost, syncOutbrainBreakdowns } from '../sync/outbrain.js';
+import { syncOutbrainCampaigns, syncOutbrainPromotedLinks, syncOutbrainCost, syncOutbrainBreakdowns, resolveOutbrainCodefuelPairs } from '../sync/outbrain.js';
 import { query } from '../db/client.js';
 import { logger } from '../config/logger.js';
 import { sourceEnabled, type Source } from '../config/tenant.js';
@@ -120,6 +120,7 @@ export async function runDailyBackfill(): Promise<{ ok: string[]; failed: string
     await step('taboola-metadata', 'taboola', () => syncTaboolaMetadata());
     await step('outbrain-campaigns', 'outbrain', () => syncOutbrainCampaigns());
     await step('outbrain-promoted-links', 'outbrain', () => syncOutbrainPromotedLinks());
+    await step('outbrain-cf-pairs', 'outbrain', () => resolveOutbrainCodefuelPairs());
 
     // 2. Taboola hourly — 2-day sub-windows (API rejects ranges over 48h).
     for (let off = -4; off <= 0; off += 2) {

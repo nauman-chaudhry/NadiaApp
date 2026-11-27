@@ -3026,3 +3026,34 @@ Untagged active accounts: SSM10, 15, 16, 18, 19, 20, 21, 22.
 P1 alias rows in outbrain_ads, P2 hourly pair insert, P3 MV 054 orphan account + Taboola re-route,
 P4 suffix auto-tag, P5 health check). Awaiting the user's go-ahead.
 **Commit:** below (docs only).
+
+### 2026-11-27 — Built P1/P2/P5: hourly Codefuel pair + GID-alias resolution, attribution health
+**Why:** Nadia's "Unattributed revenue — no account" report (diagnosis entry above).
+**Migration 054** (applied): `outbrain_ads.origin` ('url' | 'alias') + `link_gd`.
+**`resolveOutbrainCodefuelPairs()`** (`sync/outbrain.ts`, DB only, no Outbrain API call), run
+hourly in the `:25` Outbrain tick before the MV refresh, in the 03:00 backfill after promoted links,
+and as `run-once outbrain-cf-pairs`; recorded as sync_runs `outbrain`/`cf-pairs`.
+(P2) inserts any (gd, r) seen in a link URL in `outbrain_ad_daily` (last 14 days) that
+`outbrain_ads` lacks — insert-only, nightly scoring still owns shared pairs — so new links match
+within the hour, not at 03:00. (P1) for still-unmatched Codefuel-Outbrain pairs: candidates =
+links with the same r that spent on the revenue days (or day before), restricted to the GID's known
+domains; alias written only when exactly one campaign AND one URL gd remain. Nightly upsert now
+resets `origin='url', link_gd=NULL`, so a real URL pair always wins.
+API: Outbrain Ads `cf_rep`/`cf_camp_only` join links on `COALESCE(oa.link_gd, cf.gd_param)` so alias
+revenue lands on the real promoted link. `/api/sync-status` returns `health` (revenue with no
+campaign yesterday > $10 and > 2%; accounts with spend in 7 days and no partner tag); the header
+shows "⚠ Attribution: N issues" with the detail on hover.
+**Result (live DB):** 83 alias rows, all → SBH_ssm_16_Codefuel, link_gd AP1009513 (dry run first:
+83/85 AP1009512 pairs, $860.07 of $862.97). After MV refresh, 11-20..27: SSM16 revenue
+**$861.29** (was ~$1), "(Unattributed — no account)" **$26.84** (was ~$875; remainder = the
+Taboola GIDs Codefuel labels Outbrain, P3). Revenue Campaign == Ads == Accounts under source
+all/outbrain/taboola/meta, account SSM16, feed all/yahoo/flux. Revenue lands on real links (-4 rows).
+**Spend gaps found and explained, not caused by this change:**
+- Outbrain $0.74 (SSM16 $0.82): `outbrain_stats_daily` vs `outbrain_ad_daily` differ $0.84 on the
+  live day 11-27 (1–3¢ on closed days) — upstream timing.
+- **Taboola +$38.92 on Ads**: campaign 50924659 has 3 Codefuel representative ads and the Ads view
+  gives EACH the full campaign spend ($19.46 × 3). This is the 2026-09-18 known Taboola gap; it
+  reappeared because Taboola has spend again (Lead Gen Affiliates – SC). Not fixed here — next item.
+Health today: 6 untagged active accounts (SSM15/16/18/19/21/22); unattributed yesterday $9.65.
+**Deploy:** worker (cron cf-pairs), API (link_gd join + health), frontend (header badge).
+Migration 054 already applied. **Commit:** below.

@@ -164,6 +164,43 @@ app.get('/api/sync-status', async (_req, res, next) => {
            FROM outbrain_marketer_hourly`,
       ),
     ]);
+    // Attribution health (TRACK 2026-11-27): revenue that reached no campaign
+    // yesterday (UTC), and accounts with recent spend but no revenue-partner tag.
+    // Live, read-only; surfaced in the dashboard header so the next unmapped
+    // GID / untagged account is visible within a day instead of reported by the client.
+    const [unattr, untagged] = await Promise.all([
+      query<{ unattributed: string; total: string }>(
+        `SELECT COALESCE(SUM(revenue) FILTER (WHERE campaign_external_id IS NULL), 0) AS unattributed,
+                COALESCE(SUM(revenue), 0) AS total
+           FROM joined_stats_hourly
+          WHERE hour_utc >= (CURRENT_DATE - 1)::timestamptz AND hour_utc < CURRENT_DATE::timestamptz`,
+      ),
+      query<{ name: string }>(
+        `SELECT a.name FROM ad_accounts a
+          WHERE a.client_partner_id IS NULL
+            AND (EXISTS (SELECT 1 FROM ad_stats_hourly s
+                          WHERE s.ad_account_id = a.id AND s.spent > 0 AND s.hour_utc >= NOW() - INTERVAL '7 days')
+              OR EXISTS (SELECT 1 FROM outbrain_campaigns oc
+                           JOIN outbrain_stats_daily d ON d.campaign_id = oc.campaign_id
+                          WHERE a.platform_id = 2 AND oc.marketer_id = a.external_id
+                            AND d.spent > 0 AND d.day_utc >= CURRENT_DATE - 7))
+          ORDER BY a.name`,
+      ),
+    ]);
+    const unattributed = Number(unattr[0]?.unattributed ?? 0);
+    const revTotal = Number(unattr[0]?.total ?? 0);
+    const warnings: string[] = [];
+    if (unattributed > 10 && unattributed > 0.02 * revTotal) {
+      warnings.push(`$${unattributed.toFixed(2)} of yesterday's revenue is unattributed`);
+    }
+    if (untagged.length) warnings.push(`${untagged.length} active account(s) untagged: ${untagged.map(u => u.name).join(', ')}`);
+    const health = {
+      status: warnings.length ? 'warn' : 'ok',
+      unattributed_yesterday: Number(unattributed.toFixed(2)),
+      revenue_yesterday: Number(revTotal.toFixed(2)),
+      untagged_accounts: untagged.map(u => u.name),
+      warnings,
+    };
     const now = Date.now();
     const stale = ENABLED_SOURCES.filter(s => {
       const at = lastOk[s];
@@ -173,6 +210,7 @@ app.get('/api/sync-status', async (_req, res, next) => {
     res.json({
       last_sync_at: overall[0]?.finished_at ?? null,
       enabled_sources: ENABLED_SOURCES,
+      health,
       stale,
       sources: sources
         .map(s => (s.source === 'facebook' ? { ...s, source: 'meta' } : s))
@@ -1267,7 +1305,9 @@ function buildStatsSql(p: z.infer<typeof statsQuerySchema> & { withMeta?: boolea
                  cf.gd_param, cf.r_param, cf.revenue, cf.ad_clicks, cf.sessions
           FROM ob_cf_rev cf
           JOIN outbrain_ads oa ON oa.gd_param = cf.gd_param AND oa.r_param = cf.r_param
-          JOIN ob_cost_all c  ON c.gd_param  = cf.gd_param AND c.r_param  = cf.r_param
+          -- link_gd: an alias row (migration 054) maps the GID Codefuel REPORTS to the
+          -- GID actually in the link's URL, so the revenue still lands on that link.
+          JOIN ob_cost_all c  ON c.gd_param  = COALESCE(oa.link_gd, cf.gd_param) AND c.r_param = cf.r_param
                              AND c.ob_camp_id = oa.campaign_id
           ORDER BY cf.gd_param, cf.r_param, c.spent DESC, c.promoted_link_id
         ),
@@ -1281,7 +1321,7 @@ function buildStatsSql(p: z.infer<typeof statsQuerySchema> & { withMeta?: boolea
           JOIN outbrain_ads oa ON oa.gd_param = cf.gd_param AND oa.r_param = cf.r_param
           WHERE NOT EXISTS (
             SELECT 1 FROM ob_cost_all c2
-             WHERE c2.gd_param = cf.gd_param AND c2.r_param = cf.r_param
+             WHERE c2.gd_param = COALESCE(oa.link_gd, cf.gd_param) AND c2.r_param = cf.r_param
                AND c2.ob_camp_id = oa.campaign_id)
           GROUP BY oa.campaign_id
         ),
