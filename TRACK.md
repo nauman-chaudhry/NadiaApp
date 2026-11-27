@@ -3008,3 +3008,21 @@ Accounts $433.16 / $299.72 / 1,237 Results under all/yahoo/flux and the account 
 Chrome check of the live dashboard not possible (extension could not load the site — tabs stay on
 New Tab); left to the user.
 **Commit:** below (docs only).
+
+### 2026-11-27 — Investigation: "Unattributed revenue — no account" (Codefuel on Outbrain, SSM16) — plan only
+**Client report (Nadia):** Codefuel revenue since 11-25 shows as "Unattributed — no account"; it
+belongs to SBH_ssm_16_Codefuel (foundthatdeal.com, she quoted GID AP1009513) + 2 other campaigns;
+asks that future domains/GDs always sync. Researched read-only by an Orca worker; nothing changed.
+**Findings:** $874.50 of Codefuel-Outbrain revenue (11-24..11-27) is in the MV's `ob_cf_orphan`
+branch, which has no account resolution (hardcoded NULL `ad_account_id`). **$854.68 = gd AP1009512**:
+SSM16's 83 new foundthatdeal.com links carry `gd=AP1009513` in the URL, but Codefuel reports the
+domain's GID AP1009512 (gd↔domain has been 1:1 historically; 84/85 reported channels equal SSM16
+link r values) — a URL/GID mismatch, not sync latency or tenancy. **$19.82 = AP1009667–670**:
+Taboola campaigns 50924660–64 that Codefuel labels `source_platform='Outbrain'`. Neither gd nor r is
+unique alone; r restricted to links spending on D-1..D plus the gd's domain resolves all of
+AP1009512. New links become attributable only at the 03:00 backfill (`outbrain_ads`, up to ~24h).
+Untagged active accounts: SSM10, 15, 16, 18, 19, 20, 21, 22.
+**Plan:** `docs/plans/2026-11-27-codefuel-outbrain-unattributed-plan.md` (P0 client/tag fixes,
+P1 alias rows in outbrain_ads, P2 hourly pair insert, P3 MV 054 orphan account + Taboola re-route,
+P4 suffix auto-tag, P5 health check). Awaiting the user's go-ahead.
+**Commit:** below (docs only).
