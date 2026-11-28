@@ -261,6 +261,9 @@ accounts`.
 - Multi-value filters (`account_id`, `campaign_id`, `status`, `country`, `gd`) use
   `= ANY(string_to_array($N,','))`.
 - **All-sources Ads runs the builder twice** (Taboola + Outbrain) and concatenates.
+- **Taboola cost on the Ads tab is campaign-grain split evenly** across the campaign's Codefuel
+  representative ads (`cs_rep`; counts by integer division, remainder on the top-revenue ad), so
+  per-ad Taboola spend is an allocation, not a measurement. Never join `cs` to per-ad rows directly.
 
 **Synthetic rows** — negative `ad_id`s that exist so totals reconcile:
 
@@ -395,9 +398,9 @@ too, with the reason.
   and `ENABLED_SOURCES` env filters at ingestion. Nothing built; blocked on Joe's Taboola account
   naming and IA affiliate names. Not yet in TRACK.md.
 - **Known open issues (not bugs to fix in passing — check TRACK first):**
-  - Taboola cost has been effectively dead upstream since ~2026-08-19 (verified upstream, not
-    pipeline). Taboola-side Campaign-vs-Ads spend gap ~$52 on a $194 base, and a $0.23 revenue
-    delta under `gd=AP1009377` — logged 2026-09-18, unchased.
+  - Taboola-side Campaign-vs-Ads spend gap: **fixed 2026-11-28** — it was each Codefuel
+    representative ad getting the whole campaign's cost; `cs_rep` now splits it evenly (TRACK).
+    A $0.23 revenue delta under `gd=AP1009377` (logged 2026-09-18) remains unchased.
   - 17 `(gd, r)` pairs genuinely shared by two Outbrain accounts are single-owned by the scoring
     rule in `syncOutbrainPromotedLinks`; a proper split needs click-share allocation in the MV
     (user's decision).

@@ -3069,3 +3069,20 @@ Full matrix (deployed commit run locally on the live DB): **revenue Campaign == 
 all 11 combinations** (source all/outbrain/taboola/meta, SSM16, feed all/yahoo/flux). Spend:
 Meta exact; Outbrain +$0.09 on Ads (SSM16 +$0.01), the feed-timing gap; **Taboola +$55.34 on Ads**
 (was +$38.92 yesterday): the representative-ad double-count, still open and growing with spend.
+
+### 2026-11-28 — Fixed the Taboola Ads-tab spend double-count (the 2026-09-18 "Taboola gap")
+**Cause:** Taboola cost is campaign-grain (`ad_stats_hourly.ad_id` NULL). The Ads view's Codefuel
+branch (`cf_rep`, one representative ad per earning (gd, r)) joined `cs` by campaign, so a campaign
+with N earning ads showed its full spend/impressions/clicks/conversions on EACH ad. Live 11-20..27:
+campaign 50924659 "US-Mixed KW 24 Nov -9671" has 3 earning ads → $27.67 × 3 = $83.01, Ads +$55.34.
+**Fix (`server.ts`, API only):** new CTE `cs_rep` splits each campaign's totals evenly across its
+N rep ads — spend as an exact numeric division, counts by integer division with the remainder on
+the top-revenue ad, so every column sums to the campaign total. Even split, not revenue-weighted:
+Taboola gives no per-ad cost here, and a revenue-weighted split would copy the campaign margin onto
+every ad. `-1` (has_cf) and `-3` logic unchanged.
+**Verified (local API on the live DB):** source=taboola 11-20..27 Campaign == Ads == Accounts
+$421.20 / $75.85 (was Ads $476.54); campaign 50924659: imp 17,092 / clk 225 / conv 98 / $27.67
+identical on both tabs (ads 5,698+5,697+5,697 etc.); taboola+flux, Nov 1–27 taboola, meta all exact.
+Remaining spend deltas are Outbrain-only feed timing: +$0.09 (11-20..27), +$0.30 on $71,140 (Oct).
+Revenue equal in all 15 combinations.
+**Deploy:** API only. No migration.

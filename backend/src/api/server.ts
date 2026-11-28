@@ -2506,6 +2506,31 @@ function buildStatsSql(p: z.infer<typeof statsQuerySchema> & { withMeta?: boolea
         WHERE ${showTaboola ? 'TRUE' : 'FALSE'} ${accClause} ${campClause} ${statClause}
         ORDER BY ck.gd_param, ck.r_param, COALESCE(cs.spent, 0) DESC, a.id DESC
       ),
+      -- Taboola cost is CAMPAIGN-grain, but a campaign can have several Codefuel
+      -- representative ads (one per (gd, r) that earned). Joining cs to each of them
+      -- gave EVERY ad the whole campaign's spend/impressions/clicks/conversions, so
+      -- the Ads tab over-counted Taboola spend by (N-1) x campaign spend
+      -- (+$55.34 on campaign 50924659, 2026-11-28; the 2026-09-18 "Taboola gap").
+      -- Split the campaign totals evenly across its N rep ads instead: counts use
+      -- integer division with the remainder on the top-revenue ad, so every column
+      -- still sums to exactly the campaign total (Campaign == Ads). An even split is
+      -- deliberate: Taboola gives no per-ad cost here, and a revenue-weighted split
+      -- would just copy the campaign margin onto every ad.
+      cs_rep AS (
+        SELECT r.ad_db_id,
+               cs.spent / k.n AS spent,
+               FLOOR(cs.impressions / k.n) + CASE WHEN k.rn = 1 THEN cs.impressions - FLOOR(cs.impressions / k.n) * k.n ELSE 0 END AS impressions,
+               FLOOR(cs.clicks      / k.n) + CASE WHEN k.rn = 1 THEN cs.clicks      - FLOOR(cs.clicks      / k.n) * k.n ELSE 0 END AS clicks,
+               FLOOR(cs.conversions / k.n) + CASE WHEN k.rn = 1 THEN cs.conversions - FLOOR(cs.conversions / k.n) * k.n ELSE 0 END AS conversions
+        FROM cf_rep r
+        JOIN ads a ON a.id = r.ad_db_id
+        JOIN (SELECT r2.ad_db_id,
+                     COUNT(*)     OVER (PARTITION BY a2.campaign_id) AS n,
+                     ROW_NUMBER() OVER (PARTITION BY a2.campaign_id
+                                        ORDER BY COALESCE(r2.revenue, 0) DESC, r2.ad_db_id) AS rn
+                FROM cf_rep r2 JOIN ads a2 ON a2.id = r2.ad_db_id) k ON k.ad_db_id = r.ad_db_id
+        JOIN cs ON cs.campaign_id = a.campaign_id
+      ),
       -- IA item-id → campaign map (mirrors the MV's ia_item_map from migration
       -- 034). IA campaign_ext_id can carry EITHER a Taboola campaign id OR a
       -- Taboola item/ad id — item ids only resolve via ads.external_id. Without
@@ -2630,7 +2655,8 @@ function buildStatsSql(p: z.infer<typeof statsQuerySchema> & { withMeta?: boolea
       JOIN ads a           ON a.id   = r.ad_db_id
       JOIN campaigns c     ON c.id   = a.campaign_id
       JOIN ad_accounts acc ON acc.id = c.ad_account_id
-      LEFT JOIN cs         ON cs.campaign_id = c.id
+      -- This ad's share of its campaign's cost (cs_rep), not the whole campaign.
+      LEFT JOIN cs_rep cs  ON cs.ad_db_id = r.ad_db_id
       -- Pre-existing: an ad whose (gd, r) pair earned nothing AND whose campaign
       -- has no cost in the window rendered as an all-zero row. Zero contribution
       -- to totals, so this only removes blank lines.
