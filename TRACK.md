@@ -3057,3 +3057,15 @@ all/outbrain/taboola/meta, account SSM16, feed all/yahoo/flux. Revenue lands on 
 Health today: 6 untagged active accounts (SSM15/16/18/19/21/22); unattributed yesterday $9.65.
 **Deploy:** worker (cron cf-pairs), API (link_gd join + health), frontend (header badge).
 Migration 054 already applied. **Commit:** below.
+
+### 2026-11-28 — Verified 0ab8d8e live (API + worker + frontend deployed)
+`/health` commit `0ab8d8e`. Worker ran `outbrain`/`cf-pairs` at 10:27Z (ok); the 03:00 backfill
+kept all 83 alias rows. Live dashboard (Chrome): header shows "⚠ Attribution: 2 issues" ($25.14
+unattributed yesterday; 6 untagged accounts). Accounts 11-20..27: SBH_ssm_16_Codefuel spend
+$1,345.02 / revenue **$1,100.02**; "(Unattributed — no account)" **$48.27**, of which ~$41 is
+AP1009667–670 (Taboola campaigns Codefuel labels Outbrain, P3) and ~$7 small older items. SSM16 Ads
+tab lists the real foundthatdeal links with revenue (total $1,345.03 / $1,100.02).
+Full matrix (deployed commit run locally on the live DB): **revenue Campaign == Ads == Accounts in
+all 11 combinations** (source all/outbrain/taboola/meta, SSM16, feed all/yahoo/flux). Spend:
+Meta exact; Outbrain +$0.09 on Ads (SSM16 +$0.01), the feed-timing gap; **Taboola +$55.34 on Ads**
+(was +$38.92 yesterday): the representative-ad double-count, still open and growing with spend.
